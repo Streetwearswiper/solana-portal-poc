@@ -1,1 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Solana Phantom Connect</title>
+    
+    <!-- 1. Tailwind CSS for Styling (Mobile Friendly) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- 2. Solana Web3.js Library -->
+    <script src="https://unpkg.com/@solana/web3.js@latest/lib/index.iife.min.js"></script>
 
+    <style>
+        /* Custom Animations */
+        .fade-in { animation: fadeIn 0.5s ease-in-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        
+        /* Loading Spinner */
+        .loader {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #9333ea;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            animation: spin 1s linear infinite;
+            display: inline-block;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+</head>
+<body class="bg-gray-900 text-white min-h-screen flex items-center justify-center p-4">
+
+    <div class="max-w-md w-full bg-gray-800 rounded-xl shadow-2xl overflow-hidden fade-in">
+        
+        <!-- Header -->
+        <div class="bg-purple-700 p-4 text-center">
+            <h1 class="text-2xl font-bold flex items-center justify-center gap-2">
+                <img src="https://cryptologos.cc/logos/solana-sol-logo.png?v=025" class="w-8 h-8" alt="Solana">
+                Solana Connect
+            </h1>
+            <p class="text-purple-200 text-sm mt-1">Mobile Optimized</p>
+        </div>
+
+        <!-- Main Content -->
+        <div class="p-6 space-y-4">
+            
+            <!-- Status Message -->
+            <div id="statusMessage" class="hidden p-3 rounded-lg text-center text-sm font-medium transition-all"></div>
+
+            <!-- Connect Button -->
+            <button id="connectBtn" onclick="connectWallet()" 
+                    class="w-full bg-purple-600 hover:bg-purple-500 active:scale-95 text-white font-bold py-3 px-4 rounded-lg flex items-center justify-center gap-2 transition-all shadow-lg">
+                <span id="btnText">Connect Phantom Wallet</span>
+                <div id="btnLoader" class="loader hidden"></div>
+            </button>
+
+            <!-- Wallet Details (Hidden by default) -->
+            <div id="walletDetails" class="hidden space-y-4 mt-6 border-t border-gray-700 pt-4">
+                
+                <!-- Address Card -->
+                <div class="bg-gray-900 p-3 rounded-lg">
+                    <p class="text-xs text-gray-400 uppercase tracking-wider mb-1">Public Address</p>
+                    <p id="addressDisplay" class="font-mono text-sm break-all text-purple-300">...</p>
+                </div>
+
+                <!-- Balance Card -->
+                <div class="bg-gray-900 p-3 rounded-lg flex justify-between items-center">
+                    <div>
+                        <p class="text-xs text-gray-400 uppercase tracking-wider mb-1">Balance</p>
+                        <p id="balanceDisplay" class="text-2xl font-bold text-white">Loading...</p>
+                    </div>
+                    <img src="https://cryptologos.cc/logos/solana-sol-logo.png?v=025" class="w-10 h-10" alt="SOL">
+                </div>
+
+                <!-- Disconnect Button -->
+                <button onclick="disconnectWallet()" 
+                        class="w-full bg-red-600 hover:bg-red-500 text-white font-medium py-2 px-4 rounded-lg transition-all">
+                    Disconnect
+                </button>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="bg-gray-900 p-3 text-center text-xs text-gray-500">
+            Powered by Solana Web3.js
+        </div>
+    </div>
+
+    <!-- 3. JavaScript Logic -->
+    <script>
+        // Configuration
+        const RPC_URL = 'https://api.mainnet-beta.solana.com';
+        
+        // Initialize Solana Connection
+        const connection = new solanaWeb3.Connection(RPC_URL, 'confirmed');
+        
+        // Check if Phantom is installed
+        const phantom = window.phantom?.solana;
+
+        // DOM Elements
+        const connectBtn = document.getElementById('connectBtn');
+        const walletDetails = document.getElementById('walletDetails');
+        const addressDisplay = document.getElementById('addressDisplay');
+        const balanceDisplay = document.getElementById('balanceDisplay');
+        const statusMessage = document.getElementById('statusMessage');
+        const btnText = document.getElementById('btnText');
+        const btnLoader = document.getElementById('btnLoader');
+
+        // 1. Connect Function
+        async function connectWallet() {
+            if (!phantom) {
+                showStatus("Phantom Wallet not found! Please install it.", "bg-red-900 text-red-200");
+                return;
+            }
+
+            // Show loading state
+            btnText.innerText = "Connecting...";
+            btnLoader.classList.remove('hidden');
+            connectBtn.disabled = true;
+
+            try {
+                // Request connection to Phantom
+                const resp = await phantom.connect();
+                const publicKey = resp.publicKey.toString();
+
+                // Update UI
+                connectBtn.classList.add('hidden');
+                walletDetails.classList.remove('hidden');
+                addressDisplay.innerText = publicKey;
+                
+                showStatus("Connected Successfully!", "bg-green-900 text-green-200");
+
+                // Fetch Balance
+                fetchBalance(publicKey);
+
+            } catch (err) {
+                console.error(err);
+                showStatus(`Connection Error: ${err.message}`, "bg-red-900 text-red-200");
+                btnText.innerText = "Connect Phantom Wallet";
+                connectBtn.disabled = false;
+            }
+        }
+
+        // 2. Fetch Balance Function
+        async function fetchBalance(publicKeyString) {
+            try {
+                const publicKey = new solanaWeb3.PublicKey(publicKeyString);
+                
+                // Get balance in Lamports (1 SOL = 1,000,000,000 Lamports)
+                const balance = await connection.getBalance(publicKey);
+                
+                // Convert to SOL
+                const solBalance = balance / 1000000000;
+                
+                // Update UI
+                balanceDisplay.innerText = `${solBalance.toFixed(4)} SOL`;
+            } catch (err) {
+                console.error(err);
+                balanceDisplay.innerText = "Error";
+            }
+        }
+
+        // 3. Disconnect Function
+        async function disconnectWallet() {
+            try {
+                await phantom.disconnect();
+                
+                // Reset UI
+                connectBtn.classList.remove('hidden');
+                walletDetails.classList.add('hidden');
+                btnText.innerText = "Connect Phantom Wallet";
+                connectBtn.disabled = false;
+                
+                showStatus("Disconnected", "bg-gray-700 text-gray-200");
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        // Helper: Show Status Message
+        function showStatus(message, colorClass) {
+            statusMessage.innerText = message;
+            statusMessage.className = `p-3 rounded-lg text-center text-sm font-medium transition-all ${colorClass}`;
+            
+            // Hide after 3 seconds
+            setTimeout(() => {
+                statusMessage.classList.add('hidden');
+            }, 3000);
+        }
+
+        // Optional: Listen for Phantom Disconnect Event
+        if (phantom) {
+            phantom.on('disconnect', () => {
+                connectBtn.classList.remove('hidden');
+                walletDetails.classList.add('hidden');
+                btnText.innerText = "Connect Phantom Wallet";
+                connectBtn.disabled = false;
+                showStatus("Wallet Disconnected", "bg-gray-700 text-gray-200");
+            });
+
+            phantom.on('accountChanged', (publicKey) => {
+                const newAddress = publicKey.toString();
+                addressDisplay.innerText = newAddress;
+                fetchBalance(newAddress);
+                showStatus("Account Changed", "bg-blue-900 text-blue-200");
+            });
+        }
+    </script>
+</body>
+</html>
