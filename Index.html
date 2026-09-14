@@ -1,1 +1,22 @@
-
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Solana Rewards</title>
+    <script src="https://unpkg.com/@solana/web3.js@latest/lib/index.umd.min.js"></script>
+    <style>
+        body { background: #0a0a0a; color: white; font-family: sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+        .card { background: #161616; padding: 30px; border-radius: 20px; text-align: center; width: 85%; max-width: 350px; border: 1px solid #333; }
+        button { background: #14F195; color: black; border: none; padding: 15px; width: 100%; border-radius: 14px; font-weight: bold; margin-top: 20px; }
+        #status { margin-top: 20px; font-size: 13px; color: #888; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h1 id="title">Solana Mint</h1>
+        <p id="desc">Connect wallet to claim reward.</p>
+        <button id="actionBtn">Connect Wallet</button>
+        <p id="status">Status: Ready</p>
+    </div>
+    <script>
