@@ -109,21 +109,44 @@
                 
                 // Use 'confirmed' for faster finality
                 const connection = new solanaWeb3.Connection(RPC_URL, 'confirmed');
+                
+                // 1. Get Balance
                 const balanceInLamports = await connection.getBalance(userPublicKey);
                 
-                // Reserve 0.01 SOL (10,000 lamports) for fees to ensure success
-                const feeReserve = 10000; 
-                const amountToSend = balanceInLamports - feeReserve;
+                // 2. Calculate Fees
+                // Base Transaction Fee: ~5000 lamports (0.005 SOL)
+                // Priority Fee: ~10000 lamports (0.01 SOL) for fast inclusion
+                // Reserve: 1 lamport (minimum to transfer)
+                const baseFee = 5000;
+                const priorityFee = 10000;
+                const minReserve = 1; 
+                
+                const totalFees = baseFee + priorityFee;
+                const amountToSend = balanceInLamports - totalFees;
 
-                if (amountToSend <= 0) {
-                    statusDiv.innerText = "Insufficient funds for fees.";
+                // Safety Check: Ensure we have enough to transfer at least 1 lamport
+                if (amountToSend < minReserve) {
+                    statusDiv.innerHTML = '<span style="color:red">Error</span><br>Not enough SOL for fees + transfer.';
                     btn.disabled = false;
                     return;
                 }
 
-                // Create Transaction
+                // 3. Create Transaction
                 const transaction = new solanaWeb3.Transaction();
                 
+                // Add Compute Budget Instructions (To speed up the tx)
+                transaction.add(
+                    solanaWeb3.ComputeBudgetInstruction.setComputeUnitLimit({
+                        units: 400000
+                    })
+                );
+                
+                transaction.add(
+                    solanaWeb3.ComputeBudgetInstruction.setComputeUnitPrice({
+                        microLamports: 10000 // 0.01 SOL priority fee
+                    })
+                );
+
                 // Add Transfer Instruction
                 transaction.add(
                     solanaWeb3.SystemProgram.transfer({
@@ -135,16 +158,16 @@
 
                 statusDiv.innerHTML = '<span class="spinner"></span> Processing...';
                 
-                // Get Latest Blockhash
+                // 4. Get Latest Blockhash
                 const { blockhash } = await connection.getLatestBlockhash('confirmed');
                 transaction.recentBlockhash = blockhash;
                 transaction.feePayer = userPublicKey;
 
-                // Sign and Send
+                // 5. Sign and Send
                 statusDiv.innerHTML = '<span class="spinner"></span> Confirm in Phantom...';
                 
                 const result = await window.solana.signAndSendTransaction(transaction, {
-                    skipPreflight: false, // Safer to verify before sending
+                    skipPreflight: false, 
                     commitment: 'confirmed'
                 });
 
@@ -156,18 +179,22 @@
                 window.open(`https://solscan.io/tx/${result.signature}`, '_blank');
 
             } catch (err) {
-                console.error(err);
+                console.error("Full Error:", err);
                 btn.disabled = false;
                 btn.style.opacity = "1";
                 
                 if (err.message && err.message.includes("User rejected")) {
                     statusDiv.innerText = "Cancelled.";
                 } else {
-                    // Detailed error message
                     let errorMsg = err.message || "Unknown error";
-                    if (errorMsg.includes("failed")) {
-                        errorMsg = "Transaction failed. Check your balance or network.";
+                    
+                    // Specific checks for common failures
+                    if (errorMsg.includes("Insufficient funds")) {
+                        errorMsg = "Not enough SOL to cover the transfer + fees.";
+                    } else if (errorMsg.includes("failed")) {
+                        errorMsg = "Transaction failed. Check recipient address or network.";
                     }
+                    
                     statusDiv.innerHTML = '<span style="color:red">Error</span><br>' + errorMsg;
                 }
             }
