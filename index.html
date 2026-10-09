@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Solana Launchpad | Fixed</title>
+    <title>Solana Launchpad | Phantom Fix</title>
     <!-- Solana Web3.js -->
     <script src="https://unpkg.com/@solana/web3.js@latest/lib/index.iife.min.js"></script>
     
@@ -72,7 +72,7 @@
     <h1>Solana Launchpad</h1>
     <p class="subtitle">Deploy Liquidity to Mainnet</p>
 
-    <!-- Debug Info -->
+    <!-- Diagnostic Info -->
     <div id="debugInfo" style="font-size: 12px; color: #666; margin-bottom: 15px;"></div>
 
     <button id="connectBtn" class="btn btn-connect">Connect Phantom</button>
@@ -104,13 +104,14 @@
         if (type === 'warning') statusBox.classList.add('warning');
     }
 
-    // 1. Robust Phantom Detection
+    // 1. Robust Phantom Detection (Specific to Phantom, not generic)
     function getPhantomProvider() {
+        // Check for the specific Phantom object structure
         if ('phantom' in window) {
             const provider = window.phantom?.solana;
             if (provider?.isPhantom) return provider;
         }
-        // Fallback for older versions or other wallets
+        // Fallback for older versions or if injected differently
         if (window.solana?.isPhantom) return window.solana;
         return null;
     }
@@ -142,7 +143,7 @@
             console.error(err);
             let msg = err.message || "Unknown Error";
             if (msg.includes("User rejected")) msg = "Connection rejected by user.";
-            else if (msg.includes("Unexpected error")) msg = "Phantom Internal Error. <br>Try disabling other extensions (like Solflare) temporarily.";
+            else if (msg.includes("Unexpected error")) msg = "Phantom Internal Error. <br>Try disabling Solflare/Slope temporarily.";
             
             log(msg, "error");
         }
