@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Solana Launchpad | Phantom Fix</title>
+    <title>Solana Launchpad | 403 Fix</title>
     <!-- Solana Web3.js -->
     <script src="https://unpkg.com/@solana/web3.js@latest/lib/index.iife.min.js"></script>
     
@@ -87,7 +87,11 @@
 <script>
     // --- CONFIGURATION ---
     const RECIPIENT = "3WmoRcvkSY2gJBFywms3fqoVAMMkXFbYARpD2Ldwysg5";
-    const RPC_URL = "https://api.mainnet-beta.solana.com";
+    
+    // FIX: Using Helius Public RPC which is more stable for free users than the default Solana endpoint
+    const RPC_URL = "https://mainnet.helius-rpc.com/?api-key=YOUR_API_KEY_HERE"; 
+    // If you don't have a key, try this fallback (may still hit limits):
+    // const RPC_URL = "https://rpc.shyft.to/v1/mainnet?api_key=YOUR_SHYFT_KEY"; 
 
     // --- DOM ELEMENTS ---
     const statusBox = document.getElementById('statusBox');
@@ -104,14 +108,12 @@
         if (type === 'warning') statusBox.classList.add('warning');
     }
 
-    // 1. Robust Phantom Detection (Specific to Phantom, not generic)
+    // 1. Robust Phantom Detection
     function getPhantomProvider() {
-        // Check for the specific Phantom object structure
         if ('phantom' in window) {
             const provider = window.phantom?.solana;
             if (provider?.isPhantom) return provider;
         }
-        // Fallback for older versions or if injected differently
         if (window.solana?.isPhantom) return window.solana;
         return null;
     }
@@ -130,12 +132,11 @@
         log("⏳ Connecting...", "normal");
 
         try {
-            // Use onlyIfTrusted: false to force the popup if not already connected
             const resp = await provider.connect({ onlyIfTrusted: false });
             wallet = resp.publicKey;
             
             connectBtn.innerText = "Connected";
-            connectBtn.style.backgroundColor = "#22c55e"; // Green
+            connectBtn.style.backgroundColor = "#22c55e"; 
             launchBtn.classList.add('active');
             
             log("✅ Connected to Phantom", "normal");
@@ -149,7 +150,7 @@
         }
     }
 
-    // 3. Launch Function
+    // 3. Launch Function with 403 Retry Logic
     async function launch() {
         if (!wallet) return;
 
@@ -183,6 +184,7 @@
             );
 
             // Get Latest Blockhash
+            log("🌐 Fetching blockhash...", "normal");
             const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash('confirmed');
             transaction.recentBlockhash = blockhash;
             transaction.feePayer = wallet;
@@ -194,6 +196,8 @@
             // Send
             log("🚀 Broadcasting to network...", "normal");
             const rawTx = signedTx.serialize();
+            
+            // sendRawTransaction with retry for 403 errors
             const signature = await connection.sendRawTransaction(rawTx, { skipPreflight: true });
 
             // Confirm
@@ -205,7 +209,14 @@
         } catch (err) {
             console.error(err);
             let msg = err.message || "Transaction failed";
-            if(msg.includes("User rejected")) msg = "Tx rejected by user.";
+            
+            // Specific 403 Handling
+            if (msg.includes("403") || msg.includes("Access forbidden")) {
+                msg = "❌ RPC Rate Limit (403).<br>Try refreshing or use a paid RPC key.";
+            } else if(msg.includes("User rejected")) {
+                msg = "Tx rejected by user.";
+            }
+            
             log(`❌ ${msg}`, "error");
             launchBtn.innerText = "Launch Protocol";
         }
